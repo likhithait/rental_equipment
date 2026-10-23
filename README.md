@@ -1,3 +1,6 @@
+cf set-env sprint-srv CLOUDINARY_URL "cloudinary://<api_key>:<api_secret>@<cloud_name>"
+cf restage sprint-srv
+
 # 🚜 RETS - Rental Equipment Tracking System
 
 [![SAP CAP](https://img.shields.io/badge/SAP%20CAP-v10-0a84ff?style=for-the-badge&logo=sap)](https://cap.cloud.sap)
