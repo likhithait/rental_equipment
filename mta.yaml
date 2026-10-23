@@ -1,7 +1,7 @@
 _schema-version: 3.3.0
 ID: sprint
 version: 1.0.0
-description: "A simple CAP project."
+description: "RETS - Rental Equipment Tracking System (SAP CAP Node.js + Fiori Elements)"
 
 parameters:
   enable-parallel-deployments: true
@@ -12,10 +12,7 @@ build-parameters:
       commands:
         - npm ci
         - npx cds build --production
-        - mkdir -p gen/srv/public
-        - cp app/index.html gen/srv/public/
-        - cp app/fiori-auth.js gen/srv/public/
-        - cp app/Component.js gen/srv/public/
+        - npm run build:apps # copy Fiori apps + launchpad next to the CAP server (served from gen/srv/app)
 
 modules:
   - name: sprint-srv
@@ -23,27 +20,33 @@ modules:
     path: gen/srv
     parameters:
       instances: 1
+      memory: 512M
       buildpack: nodejs_buildpack
     build-parameters:
       builder: npm-ci
     provides:
-      - name: srv-api
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
         properties:
           srv-url: ${default-url}
     requires:
       - name: sprint-auth
       - name: RETS
+      - name: sprint-cloudinary # optional: without Cloudinary photos are stored as SHA-256 sealed data URIs
 
   - name: sprint-db-deployer
     type: hdb
     path: gen/db
     parameters:
+      memory: 256M
       buildpack: nodejs_buildpack
     requires:
       - name: RETS
+
   - name: sprint
     type: approuter.nodejs
     path: .deploy/app-router
+    build-parameters:
+      ignore: ["node_modules/", "default-env.json"]
     parameters:
       keep-existing-routes: true
       disk-quota: 256M
@@ -80,43 +83,44 @@ resources:
             - https://*~{app-api/app-uri}/**
         role-collections:
           - name: 'Dispatcher (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Rental dispatch, contracts and transfers'
             role-template-references:
               - '$XSAPPNAME.Dispatcher'
           - name: 'YardWorker (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Yard inspections and damage photos'
             role-template-references:
               - '$XSAPPNAME.YardWorker'
           - name: 'Manager (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Approvals and pricing rules'
             role-template-references:
               - '$XSAPPNAME.Manager'
           - name: 'Admin (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Full access'
             role-template-references:
               - '$XSAPPNAME.Admin'
           - name: 'Auditor (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Read-only audit access'
             role-template-references:
               - '$XSAPPNAME.Auditor'
           - name: 'Technician (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Workshop repair jobs and maintenance'
             role-template-references:
               - '$XSAPPNAME.Technician'
           - name: 'BillingClerk (sprint ${org}-${space})'
-            description: 'generated'
+            description: 'Repair bills, adjustments and invoicing'
             role-template-references:
               - '$XSAPPNAME.BillingClerk'
     requires:
       - name: app-api
 
-  - name: RETS
+  - name: RETS # HDI container of the CAP model (gen/db)
     type: com.sap.xs.hdi-container
     parameters:
       service: hana
       service-plan: hdi-shared
-  - name: sprint-db
-    type: com.sap.xs.hdi-container
-    parameters:
-      service: hana
-      service-plan: hdi-shared
+
+  # Cloudinary credentials as user-provided service, create it once per space:
+  #   cf cups sprint-cloudinary -p '{"CLOUDINARY_URL":"cloudinary://<api_key>:<api_secret>@<cloud_name>"}'
+  - name: sprint-cloudinary
+    type: org.cloudfoundry.existing-service
+    optional: true

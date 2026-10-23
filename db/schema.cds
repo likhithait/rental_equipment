@@ -358,7 +358,7 @@ entity DamagePhotos : cuid {
     photoType    : EvidenceType default #Return @title: 'Evidence Type' @Common.Label: 'Evidence Type';
     mediaType    : String(100) @Core.IsMediaType;
     content      : LargeBinary @Core.MediaType: mediaType;
-    mediaUrl     : String(500) @Core.IsURL;
+    mediaUrl     : LargeString @Core.IsURL; // Cloudinary URL, or the data URI when Cloudinary is not configured
     publicId     : String(255);
     sha256       : String(64); // Integrity verification
     latitude     : Decimal(9,6);

@@ -76,6 +76,7 @@ service BillingService {
     entity IntegrationMessages as projection on my.IntegrationMessages;
 
     @readonly
+    @cds.persistence.skip
     @restrict: [
         { grant: ['READ'], to: ['BillingClerk', 'Manager', 'Admin', 'Auditor', 'YardWorker', 'Technician', 'Dispatcher'] }
     ]
@@ -84,10 +85,17 @@ service BillingService {
     };
 
     // Pricing Engine & Billing Approval Workflows
-    action calculateDamageCharge(damageId: UUID) returns RepairBills;
-    action approveRepairBill(billId: UUID, approvalReason: String) returns RepairBills;
-    action adjustRepairBill(billId: UUID, partsCost: Decimal(12,2), labourCost: Decimal(12,2), paintingCost: Decimal(12,2), reason: String) returns RepairBills;
-    action rejectRepairBill(billId: UUID, reason: String) returns RepairBills;
-    action disputeRepairBill(billId: UUID, reason: String) returns RepairBills;
-    action postInvoice(billId: UUID) returns RepairBills;
+    // (status changes only through these actions - billingStatus is read-only for CRUD)
+    @requires: ['BillingClerk', 'Manager', 'Admin']
+    action calculateDamageCharge(damageId: UUID not null) returns RepairBills;
+    @requires: ['Manager', 'Admin']
+    action approveRepairBill(billId: UUID not null, approvalReason: String) returns RepairBills;
+    @requires: ['BillingClerk', 'Manager', 'Admin']
+    action adjustRepairBill(billId: UUID not null, partsCost: Decimal(12,2), labourCost: Decimal(12,2), paintingCost: Decimal(12,2), reason: String) returns RepairBills;
+    @requires: ['Manager', 'Admin']
+    action rejectRepairBill(billId: UUID not null, reason: String) returns RepairBills;
+    @requires: ['BillingClerk', 'Manager', 'Admin']
+    action disputeRepairBill(billId: UUID not null, reason: String) returns RepairBills;
+    @requires: ['BillingClerk', 'Manager', 'Admin']
+    action postInvoice(billId: UUID not null) returns RepairBills;
 }

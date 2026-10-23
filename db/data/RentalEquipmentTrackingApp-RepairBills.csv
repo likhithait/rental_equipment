@@ -1,0 +1,2 @@
+ID;rental_ID;customer_ID;equipment_ID;damageDescription;severity;damageType;area;origin;inspectionRef;damage_ID;billDate;partsCost;labourCost;paintingCost;repairAmount;taxAmount;totalAmount;billingStatus;approvalReason;invoiceNo
+80000000-0000-0000-0000-000000000001;40000000-0000-0000-0000-000000000001;20000000-0000-0000-0000-000000000001;;;;;;;;60000000-0000-0000-0000-000000000001;2026-11-08;14000;16000;0;30000;5400;35400;Posted;Approved: Damage occurred during rental by XYZ Construction Pvt. Ltd. Customer liable.;9000123456

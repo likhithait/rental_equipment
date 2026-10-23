@@ -1,17 +1,16 @@
 import cds from '@sap/cds';
+import { purgeAbandonedDrafts } from '../common/drafts.js';
 
 export default class InspectionService extends cds.ApplicationService {
     async init() {
-        const { ConditionLogs, DamageRecords, Equipment, AssetStatusHistory } = this.entities;
+        const { ConditionLogs, DamageRecords, Equipment } = this.entities;
+        // status history is not exposed by this service - write it to the database entity
+        const { AssetStatusHistory } = cds.entities('RentalEquipmentTrackingApp');
 
         // Clean up blank or abandoned inspection drafts
         this.before('READ', 'ConditionLogs', async (req) => {
             if (!req.params?.length && !req.query?.SELECT?.one) {
-                try {
-                    await cds.db.run(
-                        DELETE.from('InspectionService.ConditionLogs.drafts').where`equipment_ID is null`
-                    );
-                } catch (e) {}
+                await purgeAbandonedDrafts(ConditionLogs.drafts, 'equipment_ID is null');
             }
         });
 
@@ -38,13 +37,13 @@ export default class InspectionService extends cds.ApplicationService {
             }
         });
 
-        // Ensure immutable inspection cannot be updated if locked
-        this.before(['UPDATE', 'DELETE'], 'ConditionLogs', async (req) => {
-            const id = req.data.ID || req.params[0]?.ID;
+        // Ensure immutable inspection cannot be changed if locked - also not through a draft (EDIT -> SAVE)
+        this.before(['EDIT', 'UPDATE', 'DELETE', 'SAVE'], 'ConditionLogs', async (req) => {
+            const id = req.data.ID || req.params?.[0]?.ID || req.params?.[0];
             if (id) {
-                const existing = await SELECT.one.from(ConditionLogs).where({ ID: id });
+                const existing = await SELECT.one.from(ConditionLogs).columns('locked').where({ ID: id });
                 if (existing?.locked) {
-                    return req.error(403, 'This inspection report is locked and cannot be modified.');
+                    return req.reject(403, 'This inspection report is locked and cannot be modified.');
                 }
             }
         });
@@ -181,10 +180,12 @@ export default class InspectionService extends cds.ApplicationService {
                 }
             }
 
-            // 2. Suggest correct next inspection type (CheckOut vs CheckIn) based on contract history
+            // 2. Suggest correct next inspection type (CheckOut vs CheckIn) based on contract history -
+            //    only when contract or equipment changes, an explicit choice of the inspector is kept
             const eqId = req.data.equipment_ID !== undefined ? req.data.equipment_ID : cur.equipment_ID;
             const rentalId = req.data.rental_ID !== undefined ? req.data.rental_ID : cur.rental_ID;
-            if (eqId) {
+            const selectionChanged = req.data.equipment_ID !== undefined || req.data.rental_ID !== undefined;
+            if (eqId && selectionChanged && req.data.inspectionType === undefined) {
                 const nextType = await getExpectedNextInspectionType(eqId, rentalId);
                 req.data.inspectionType = nextType;
             }
@@ -193,7 +194,20 @@ export default class InspectionService extends cds.ApplicationService {
         // Strict lifecycle sequence validation: CheckOut -> CheckIn -> CheckOut -> CheckIn per contract
         this.before('SAVE', 'ConditionLogs', async (req) => {
             const { equipment_ID, rental_ID, inspectionType, ID } = req.data;
-            if (!equipment_ID) return;
+            // status transitions are applied once, when the inspection is created (see after SAVE)
+            req._isNewLog = !(await SELECT.one.from(ConditionLogs).columns('ID').where({ ID }));
+            if (!equipment_ID) {
+                return req.error(400, 'Equipment Asset is mandatory', 'equipment_ID');
+            }
+            if (rental_ID) {
+                const onContract = await cds.db.run(
+                    SELECT.one.from('RentalEquipmentTrackingApp.RentalItems').columns('ID').where({ rental_ID, equipment_ID })
+                );
+                if (!onContract) {
+                    req.error(400, 'The selected equipment is not allocated to the selected rental contract.', 'equipment_ID');
+                }
+            }
+            if (!req._isNewLog) return;   // edits of an existing inspection do not change the lifecycle
 
             // Fetch the latest existing inspection log for this equipment (scoped by rental if provided)
             let query = SELECT.from(ConditionLogs)
@@ -229,21 +243,6 @@ export default class InspectionService extends cds.ApplicationService {
                 }
             }
 
-            // Defensive hook: prevent unique constraint violation on DamagePhotos during ConditionLogs draft activation
-            if (ID) {
-                try {
-                    const draftPhotos = await cds.db.run(
-                        SELECT.from('InspectionService.DamagePhotos_drafts').where({ conditionLog_ID: ID })
-                    ) || [];
-                    for (const p of draftPhotos) {
-                        await cds.db.run(
-                            DELETE.from('RentalEquipmentTrackingApp.DamagePhotos').where({ ID: p.ID })
-                        );
-                    }
-                } catch (e) {
-                    console.warn('[InspectionService] Pre-activation photo cleanup notice:', e.message);
-                }
-            }
         });
 
         // Pre-populate evidence photo type based on parent inspection type
@@ -266,8 +265,12 @@ export default class InspectionService extends cds.ApplicationService {
         });
 
         // After ConditionLogs SAVE: Update Equipment & Rental statuses based on Check-In vs Check-Out
-        this.after('SAVE', 'ConditionLogs', async (log, req) => {
-            if (!log.equipment_ID) return;
+        this.after('SAVE', 'ConditionLogs', async (_, req) => {
+            // CAP returns only the keys after CREATE - the activated inspection is in req.data
+            const log = req.data;
+            // only the first activation changes equipment and rental - re-saving an old inspection
+            // (e.g. fixing a typo in the notes) must not undo later repairs or rentals
+            if (!log.equipment_ID || !req._isNewLog) return;
 
             const eq = await SELECT.one.from(Equipment).where({ ID: log.equipment_ID });
             const damages = await cds.db.run(
@@ -292,19 +295,36 @@ export default class InspectionService extends cds.ApplicationService {
                     newEqStatus = 'Available';
                 }
 
-                // If associated with a rental contract, mark returned
+                // If associated with a rental contract, mark this item returned - and the contract
+                // once all of its equipment is back
                 if (log.rental_ID) {
-                    await cds.db.run(
-                        UPDATE('RentalEquipmentTrackingApp.Rentals').set({
-                            rentalStatus: 'Returned',
-                            actualReturnDate: new Date().toISOString().split('T')[0]
-                        }).where({ ID: log.rental_ID })
-                    );
                     await cds.db.run(
                         UPDATE('RentalEquipmentTrackingApp.RentalItems').set({
                             itemStatus: 'Returned'
                         }).where({ rental_ID: log.rental_ID, equipment_ID: log.equipment_ID })
                     );
+                    const stillOut = await cds.db.run(
+                        SELECT.one.from('RentalEquipmentTrackingApp.RentalItems').columns('ID')
+                            .where({ rental_ID: log.rental_ID, itemStatus: { '!=': 'Returned' } })
+                    );
+                    if (!stillOut) {
+                        const rental = await cds.db.run(SELECT.one.from('RentalEquipmentTrackingApp.Rentals').where({ ID: log.rental_ID }));
+                        if (rental && rental.rentalStatus !== 'Returned') {
+                            await cds.db.run(
+                                UPDATE('RentalEquipmentTrackingApp.Rentals').set({
+                                    rentalStatus: 'Returned',
+                                    actualReturnDate: new Date().toISOString().split('T')[0]
+                                }).where({ ID: log.rental_ID })
+                            );
+                            await cds.db.run(
+                                INSERT.into('RentalEquipmentTrackingApp.RentalStatusHistory').entries({
+                                    rental_ID: log.rental_ID,
+                                    oldStatus: rental.rentalStatus,
+                                    newStatus: 'Returned'
+                                })
+                            );
+                        }
+                    }
                 }
             } else if (isDispatch) {
                 // Check-Out / Dispatch inspection -> Asset is now RentedOut
@@ -346,44 +366,19 @@ export default class InspectionService extends cds.ApplicationService {
 
         // Action: Submit Inspection
         this.on('submitInspection', async (req) => {
+            // The equipment / rental status was already derived from grade and damages when the
+            // inspection was saved - submitting only hands the report over for review.
             const { conditionLogId } = req.data;
             const log = await SELECT.one.from(ConditionLogs).where({ ID: conditionLogId });
-            if (!log) return req.error(404, `Condition log ${conditionLogId} not found`);
+            if (!log) return req.reject(404, `Condition log ${conditionLogId} not found`);
+            if (log.locked) return req.reject(403, 'This inspection report is locked and cannot be modified.');
+            if (log.inspectionStatus && log.inspectionStatus !== 'Draft') {
+                return req.reject(409, `Inspection is already ${log.inspectionStatus}`);
+            }
 
-            const damages = await SELECT.from(DamageRecords).where({ conditionLog_ID: conditionLogId });
-
-            // Update inspection status
             await UPDATE(ConditionLogs).set({
                 inspectionStatus: 'Submitted'
             }).where({ ID: conditionLogId });
-
-            // Determine equipment status based on damages and grade
-            if (log.equipment_ID) {
-                const eq = await SELECT.one.from(Equipment).where({ ID: log.equipment_ID });
-                let newEqStatus = 'Available';
-
-                const hasCritical = damages.some(d => d.severity === 'Critical');
-                const hasHigh = damages.some(d => d.severity === 'High');
-
-                if (hasCritical || log.conditionGrade === 'D') {
-                    newEqStatus = 'Quarantined';
-                } else if (hasHigh || damages.length > 0 || log.conditionGrade === 'C') {
-                    newEqStatus = 'Damaged';
-                }
-
-                await UPDATE(Equipment).set({
-                    currentGrade: log.conditionGrade,
-                    currentStatus: newEqStatus,
-                    currentMeterReading: log.meterReading ?? eq?.currentMeterReading
-                }).where({ ID: log.equipment_ID });
-
-                await INSERT.into(AssetStatusHistory).entries({
-                    equipment_ID: log.equipment_ID,
-                    oldStatus: eq?.currentStatus,
-                    newStatus: newEqStatus,
-                    reason: `Inspection completed (Grade: ${log.conditionGrade}, Status: ${newEqStatus})`
-                });
-            }
 
             return await SELECT.one.from(ConditionLogs).where({ ID: conditionLogId });
         });
@@ -391,6 +386,10 @@ export default class InspectionService extends cds.ApplicationService {
         // Action: Lock Inspection (Audit / Legal protection)
         this.on('lockInspection', async (req) => {
             const { conditionLogId } = req.data;
+            const log = await SELECT.one.from(ConditionLogs).columns('ID').where({ ID: conditionLogId });
+            if (!log) return req.reject(404, `Condition log ${conditionLogId} not found`);
+            const draft = await SELECT.one.from(ConditionLogs.drafts).columns('ID').where({ ID: conditionLogId });
+            if (draft) return req.reject(409, 'The inspection is being edited - save or discard the draft before locking it.');
             await UPDATE(ConditionLogs).set({ locked: true }).where({ ID: conditionLogId });
             return await SELECT.one.from(ConditionLogs).where({ ID: conditionLogId });
         });
@@ -398,6 +397,9 @@ export default class InspectionService extends cds.ApplicationService {
         // Action: Customer / Yard Acknowledgment
         this.on('acknowledgeInspection', async (req) => {
             const { conditionLogId, signatureUrl } = req.data;
+            const log = await SELECT.one.from(ConditionLogs).columns('locked').where({ ID: conditionLogId });
+            if (!log) return req.reject(404, `Condition log ${conditionLogId} not found`);
+            if (log.locked) return req.reject(403, 'This inspection report is locked and cannot be modified.');
             await UPDATE(ConditionLogs).set({
                 customerAck: true,
                 signatureUrl: signatureUrl || null

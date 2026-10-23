@@ -110,6 +110,7 @@ service RentalService {
     entity AssetStatusHistory as projection on my.AssetStatusHistory;
 
     @readonly
+    @cds.persistence.skip
     @restrict: [
         { grant: ['READ'], to: ['Dispatcher', 'YardWorker', 'Manager', 'Admin', 'Auditor', 'Technician', 'BillingClerk'] }
     ]
@@ -119,8 +120,12 @@ service RentalService {
     }
 
     // Actions restricted by role
-    action checkOutRental(rentalId: UUID) returns Rentals;
-    action checkInRental(rentalId: UUID, actualReturnDate: Date) returns Rentals;
-    action cancelRental(rentalId: UUID, reason: String) returns Rentals;
-    action transferEquipment(equipmentId: UUID, toLocationId: UUID, reason: String) returns Equipment;
+    @requires: ['Dispatcher', 'Manager', 'Admin']
+    action checkOutRental(rentalId: UUID not null) returns Rentals;
+    @requires: ['Dispatcher', 'YardWorker', 'Manager', 'Admin']
+    action checkInRental(rentalId: UUID not null, actualReturnDate: Date) returns Rentals;
+    @requires: ['Dispatcher', 'Manager', 'Admin']
+    action cancelRental(rentalId: UUID not null, reason: String) returns Rentals;
+    @requires: ['Dispatcher', 'Manager', 'Admin']
+    action transferEquipment(equipmentId: UUID not null, toLocationId: UUID not null, reason: String) returns Equipment;
 }

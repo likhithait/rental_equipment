@@ -47,6 +47,7 @@ service InspectionService {
     };
 
     @readonly
+    @cds.persistence.skip
     @restrict: [
         { grant: ['READ'], to: ['YardWorker', 'Technician', 'Dispatcher', 'Manager', 'Admin', 'Auditor'] }
     ]
@@ -68,19 +69,24 @@ service InspectionService {
     entity Rentals as projection on my.Rentals;
 
     @readonly
+    @cds.persistence.skip
     entity InspectionTypes {
         key code : String(15);
         name : String(50);
     }
 
     @readonly
+    @cds.persistence.skip
     entity Inspectors {
         key code : String(100);
         name : String(100);
     }
 
     // Actions for Yard Worker / Inspector Workflow
-    action submitInspection(conditionLogId: UUID) returns ConditionLogs;
-    action lockInspection(conditionLogId: UUID) returns ConditionLogs;
-    action acknowledgeInspection(conditionLogId: UUID, signatureUrl: String) returns ConditionLogs;
+    @requires: ['YardWorker', 'Manager', 'Admin']
+    action submitInspection(conditionLogId: UUID not null) returns ConditionLogs;
+    @requires: ['Manager', 'Admin']
+    action lockInspection(conditionLogId: UUID not null) returns ConditionLogs;
+    @requires: ['YardWorker', 'Dispatcher', 'Manager', 'Admin']
+    action acknowledgeInspection(conditionLogId: UUID not null, signatureUrl: String) returns ConditionLogs;
 }

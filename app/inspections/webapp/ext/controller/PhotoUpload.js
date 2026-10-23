@@ -1,42 +1,57 @@
 sap.ui.define([
-    "sap/m/MessageToast"
-], function(MessageToast) {
+    "sap/m/MessageToast",
+    "sap/m/MessageBox"
+], function (MessageToast, MessageBox) {
     "use strict";
 
+    // shared capture dialog (app/common/evidence-capture.js), loaded once per launchpad session
+    var oDialogScript = null;
+    function loadCaptureDialog() {
+        if (window.openEvidencePhotoCaptureDialog) {
+            return Promise.resolve();
+        }
+        if (!oDialogScript) {
+            oDialogScript = new Promise(function (resolve, reject) {
+                var oScript = document.createElement("script");
+                oScript.src = "/common/evidence-capture.js";
+                oScript.onload = resolve;
+                oScript.onerror = function () {
+                    oDialogScript = null;
+                    reject(new Error("Photo capture could not be loaded"));
+                };
+                document.head.appendChild(oScript);
+            });
+        }
+        return oDialogScript;
+    }
+
     return {
-        onCapturePhoto: function(oBindingContext, aSelectedContexts) {
-            // Extract parent ConditionLog ID from binding context or current URL
-            let conditionLogId = null;
-            if (oBindingContext && typeof oBindingContext.getProperty === 'function') {
-                conditionLogId = oBindingContext.getProperty("ID");
-            }
-            if (!conditionLogId) {
-                const hash = window.location.hash || '';
-                const match = hash.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
-                if (match && match[1]) {
-                    conditionLogId = match[1];
-                }
+        /**
+         * "Capture Photo" action of the photo evidence table (see manifest.json).
+         * Uploads a photo for the inspection shown on the object page.
+         */
+        onCapturePhoto: function (oBindingContext) {
+            var sId = oBindingContext && oBindingContext.getProperty("ID");
+            if (!sId) {
+                MessageBox.error("Open the inspection first, then capture the photo.");
+                return;
             }
 
-            if (window.openEvidencePhotoCaptureDialog) {
+            loadCaptureDialog().then(function () {
                 window.openEvidencePhotoCaptureDialog({
-                    entityType: 'ConditionLogs',
-                    entityId: conditionLogId,
-                    conditionLog_ID: conditionLogId,
-                    defaultPhotoType: 'Return',
-                    onSuccess: function() {
-                        MessageToast.show("Evidence photo uploaded successfully!");
-                        // Refresh UI5 Model/Binding
-                        if (oBindingContext && oBindingContext.getModel) {
-                            oBindingContext.getModel().refresh();
-                        } else {
-                            setTimeout(() => window.location.reload(), 1200);
-                        }
+                    entityType: "ConditionLogs",
+                    entityId: sId,
+                    conditionLog_ID: sId,
+                    defaultPhotoType: "Return",
+                    onSuccess: function () {
+                        MessageToast.show("Evidence photo uploaded");
+                        // reload the photo table of this inspection (draft or active)
+                        oBindingContext.requestSideEffects([{ $NavigationPropertyPath: "photos" }]);
                     }
                 });
-            } else {
-                MessageToast.show("Opening Photo Capture...");
-            }
+            }).catch(function (oError) {
+                MessageBox.error(oError.message);
+            });
         }
     };
 });

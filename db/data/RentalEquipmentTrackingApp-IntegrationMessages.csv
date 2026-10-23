@@ -1,0 +1,2 @@
+ID;messageType;reference;targetSystem;status;billingDocument;payload;errorMessage;retryCount;lastAttemptAt
+92000000-0000-0000-0000-000000000001;Damage Billing Request;RENT-10001;SAP S/4HANA;Success;9000123456;"{""contractNo"":""RENT-10001"",""customer"":""XYZ Construction Pvt. Ltd."",""invoiceNo"":""9000123456"",""repairEstimate"":30000,""additionalCharges"":5400,""totalCustomerCharge"":35400,""status"":""Posted""}";;0;2026-11-13T10:00:00.000Z

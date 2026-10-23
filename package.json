@@ -1,7 +1,9 @@
 {
   "name": "sprint",
   "version": "1.0.0",
+  "description": "RETS - Rental Equipment Tracking System (SAP CAP Node.js + Fiori Elements)",
   "type": "module",
+  "private": true,
   "dependencies": {
     "@cap-js/hana": "^3",
     "@sap/cds": "^10",
@@ -9,13 +11,17 @@
     "cloudinary": "^2.11.0"
   },
   "devDependencies": {
+    "@cap-js/cds-test": "^1",
     "@cap-js/sqlite": "^3",
     "@sap/cds-dk": "^10"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "watch": "cds watch",
+    "test": "CDS_ENV=test node --test test/rets.test.js",
+    "lint": "eslint .",
+    "build:apps": "mkdir -p gen/srv/app && cp -r app/index.html app/common app/customer-management app/damage-charge-approval app/fleet-overview app/inspections app/locations app/maintenance-planner app/rentals app/repair-jobs gen/srv/app/"
   },
-  "private": true,
   "cds": {
     "requires": {
       "db": {
@@ -31,12 +37,58 @@
       },
       "auth": "xsuaa",
       "queue": false,
-      "[production]": {
-        "auth": "xsuaa"
+      "[development]": {
+        "db": {
+          "kind": "sqlite",
+          "credentials": {
+            "url": ":memory:"
+          }
+        },
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "admin": { "password": "admin", "roles": ["Admin"] },
+            "manager": { "password": "manager", "roles": ["Manager"] },
+            "dispatcher": { "password": "dispatcher", "roles": ["Dispatcher"] },
+            "inspector": { "password": "inspector", "roles": ["YardWorker"] },
+            "technician": { "password": "technician", "roles": ["Technician"] },
+            "billing": { "password": "billing", "roles": ["BillingClerk"] },
+            "auditor": { "password": "auditor", "roles": ["Auditor"] }
+          }
+        }
       },
-      "[hybrid]": {
-        "auth": "xsuaa"
+      "[test]": {
+        "db": {
+          "kind": "sqlite",
+          "credentials": {
+            "url": ":memory:"
+          }
+        },
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "admin": { "password": "admin", "roles": ["Admin"] },
+            "manager": { "password": "manager", "roles": ["Manager"] },
+            "dispatcher": { "password": "dispatcher", "roles": ["Dispatcher"] },
+            "inspector": { "password": "inspector", "roles": ["YardWorker"] },
+            "technician": { "password": "technician", "roles": ["Technician"] },
+            "billing": { "password": "billing", "roles": ["BillingClerk"] },
+            "auditor": { "password": "auditor", "roles": ["Auditor"] },
+            "alice": false,
+            "bob": false,
+            "carol": false,
+            "dave": false,
+            "erin": false,
+            "fred": false,
+            "me": false,
+            "yves": false,
+            "*": false
+          }
+        }
       }
     }
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

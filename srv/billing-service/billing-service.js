@@ -2,7 +2,47 @@ import cds from '@sap/cds';
 
 export default class BillingService extends cds.ApplicationService {
     async init() {
-        const { RepairBills, PricingRules, DamageRecords, Rentals, Customers, DamagePhotos, ConditionLogs } = this.entities;
+        const { RepairBills, PricingRules, DamageRecords, Rentals, IntegrationMessages } = this.entities;
+
+        // billing status workflow: which statuses each action may start from
+        const ALLOWED_FROM = {
+            approve: ['Draft', 'PendingApproval', 'Adjusted', 'Disputed'],
+            reject: ['Draft', 'PendingApproval', 'Adjusted', 'Disputed'],
+            adjust: ['Draft', 'PendingApproval', 'Approved', 'Disputed'],
+            dispute: ['PendingApproval', 'Approved', 'Adjusted', 'Posted'],
+            post: ['Approved', 'Adjusted']
+        };
+        const DEFAULT_TAX_PERCENT = 18;
+
+        const readBill = async (req, billId, step) => {
+            const bill = await SELECT.one.from(RepairBills).where({ ID: billId });
+            if (!bill) return req.reject(404, `Repair bill ${billId} not found`);
+            if (!ALLOWED_FROM[step].includes(bill.billingStatus)) {
+                return req.reject(409, `Repair bill ${bill.invoiceNo || billId} is "${bill.billingStatus}" - this action needs status ${ALLOWED_FROM[step].join(', ')}.`);
+            }
+            return bill;
+        };
+
+        // tax rate of a bill (as calculated before), falls back to the standard rate
+        const taxPercentOf = (bill) => {
+            const repair = Number(bill.repairAmount || 0);
+            const tax = Number(bill.taxAmount || 0);
+            return repair > 0 && tax > 0 ? (tax / repair) * 100 : DEFAULT_TAX_PERCENT;
+        };
+
+        // Next invoice number INV-<year>-<n> over active bills and open drafts
+        const nextInvoiceNo = async () => {
+            const year = new Date().getFullYear();
+            let maxNum = 1000;
+            const active = await cds.db.run(SELECT.from(RepairBills).columns('invoiceNo')) || [];
+            const drafts = await cds.db.run(SELECT.from(RepairBills.drafts).columns('invoiceNo')) || [];
+            for (const b of [...active, ...drafts]) {
+                // only legitimate standard invoice numbers like INV-2026-1003 count
+                const match = String(b?.invoiceNo || '').match(/^INV-(?:\d{4}-)?(\d{4,6})$/);
+                if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10));
+            }
+            return `INV-${year}-${maxNum + 1}`;
+        };
 
         // Automatically calculate totals on RepairBills manual entry or edit and validate customer-rental match
         this.before(['CREATE', 'UPDATE'], 'RepairBills', async (req) => {
@@ -41,33 +81,7 @@ export default class BillingService extends cds.ApplicationService {
         // Auto-generate invoice number and pre-populate defaults on new RepairBills draft
         this.before(['CREATE', 'NEW'], 'RepairBills.drafts', async (req) => {
             if (!req.data.invoiceNo) {
-                let maxNum = 1000;
-                try {
-                    const activeBills = await cds.db.run(SELECT.from(RepairBills).columns('invoiceNo')) || [];
-                    let draftBills = [];
-                    try {
-                        draftBills = await cds.db.run(SELECT.from('BillingService.RepairBills.drafts').columns('invoiceNo')) || [];
-                    } catch (e) {
-                        // draft table may be empty or error
-                    }
-                    const allBills = [...activeBills, ...draftBills];
-                    for (const b of allBills) {
-                        if (b?.invoiceNo) {
-                            // Only match legitimate standard invoice numbers like INV-2026-1003
-                            const match = String(b.invoiceNo).match(/^INV-(?:2026-)?(\d{4,6})$/);
-                            if (match) {
-                                const num = parseInt(match[1], 10);
-                                if (!isNaN(num) && num > maxNum) {
-                                    maxNum = num;
-                                }
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.error('Error fetching max invoice number:', err);
-                }
-                const nextNum = maxNum + 1;
-                req.data.invoiceNo = `INV-2026-${nextNum}`;
+                req.data.invoiceNo = await nextInvoiceNo();
             }
             if (!req.data.billDate) {
                 req.data.billDate = new Date().toISOString().split('T')[0];
@@ -79,26 +93,20 @@ export default class BillingService extends cds.ApplicationService {
         });
 
         this.before(['CREATE', 'NEW'], 'DamagePhotos.drafts', async (req) => {
-            if (!req.data.photoType) req.data.photoType = 'Return';
+            if (!req.data.photoType) req.data.photoType = 'DamageEvidence';
         });
 
-        // Defensive hook: prevent unique constraint violation on DamagePhotos during RepairBills draft activation
-        this.before(['draftActivate', 'SAVE'], 'RepairBills', async (req) => {
-            const billId = req.data?.ID || req.params?.[0]?.ID || req.params?.[0];
-            if (billId) {
-                try {
-                    const draftPhotos = await cds.db.run(
-                        SELECT.from('BillingService.DamagePhotos_drafts').where({ repairBill_ID: billId })
-                    ) || [];
-                    for (const p of draftPhotos) {
-                        await cds.db.run(
-                            DELETE.from('RentalEquipmentTrackingApp.DamagePhotos').where({ ID: p.ID })
-                        );
-                    }
-                } catch (e) {
-                    console.warn('[BillingService] Pre-activation photo cleanup notice:', e.message);
-                }
+        // Posted and rejected bills are final - they cannot be edited any more
+        this.before('EDIT', 'RepairBills', async (req) => {
+            const bill = await SELECT.one.from(RepairBills).columns('billingStatus', 'invoiceNo').where({ ID: req.params[0]?.ID });
+            if (bill && ['Posted', 'Rejected'].includes(bill.billingStatus)) {
+                return req.reject(409, `Repair bill ${bill.invoiceNo} is ${bill.billingStatus} and can no longer be edited.`);
             }
+        });
+
+        // remember whether the bill is created (first activation) or only changed
+        this.before('SAVE', 'RepairBills', async (req) => {
+            req._isNewBill = !(await SELECT.one.from(RepairBills).columns('ID').where({ ID: req.data.ID }));
         });
 
         // Defaults on new PricingRules draft
@@ -224,9 +232,12 @@ export default class BillingService extends cds.ApplicationService {
             }
         });
 
-        // Automatically set Equipment status to Damaged when an active Repair Bill is created
-        this.after('SAVE', 'RepairBills', async (bill) => {
-            if (bill.equipment_ID && bill.billingStatus !== 'Posted' && bill.billingStatus !== 'Rejected') {
+        // Automatically set Equipment status to Damaged when a Repair Bill is created
+        // (later edits of the bill must not undo a repair that happened in the meantime)
+        this.after('SAVE', 'RepairBills', async (_, req) => {
+            // CAP returns only the keys after CREATE - the activated bill is in req.data
+            const bill = req.data;
+            if (req._isNewBill && bill.equipment_ID && bill.billingStatus !== 'Posted' && bill.billingStatus !== 'Rejected') {
                 try {
                     const eq = await cds.db.run(
                         SELECT.one.from('RentalEquipmentTrackingApp.Equipment').where({ ID: bill.equipment_ID })
@@ -257,7 +268,13 @@ export default class BillingService extends cds.ApplicationService {
         this.on('calculateDamageCharge', async (req) => {
             const { damageId } = req.data;
             const damage = await SELECT.one.from(DamageRecords).where({ ID: damageId });
-            if (!damage) return req.error(404, `Damage record ${damageId} not found`);
+            if (!damage) return req.reject(404, `Damage record ${damageId} not found`);
+
+            const openBill = await SELECT.one.from(RepairBills).columns('invoiceNo', 'billingStatus')
+                .where`damage_ID = ${damageId} and billingStatus != 'Rejected'`;
+            if (openBill) {
+                return req.reject(409, `Damage is already billed with ${openBill.invoiceNo} (${openBill.billingStatus}).`);
+            }
 
             // Trace ConditionLog -> Rental -> Customer
             const conditionLog = await SELECT.one.from('RentalEquipmentTrackingApp.ConditionLogs').where({ ID: damage.conditionLog_ID });
@@ -267,7 +284,7 @@ export default class BillingService extends cds.ApplicationService {
             const customerId = damage.liableParty_ID || rental?.customer_ID;
 
             if (!rental || !customerId) {
-                return req.error(400, 'Cannot generate bill: Missing associated Rental or Customer for this damage');
+                return req.reject(400, 'Cannot generate bill: Missing associated Rental or Customer for this damage');
             }
 
             // Find matching PricingRule
@@ -292,8 +309,8 @@ export default class BillingService extends cds.ApplicationService {
             const parts = Number(rule.partsCharge || 0);
             const labour = Number(rule.labourRate || 0) * 2; // standard 2 labour hours
             const painting = Number(rule.paintingCharge || 0);
-            const repair = base + parts + labour + painting;
-            const tax = Number((repair * (Number(rule.taxPercent || 18) / 100)).toFixed(2));
+            const repair = Number((base + parts + labour + painting).toFixed(2));
+            const tax = Number((repair * (Number(rule.taxPercent ?? DEFAULT_TAX_PERCENT) / 100)).toFixed(2));
             const total = Number((repair + tax).toFixed(2));
 
             // Auto-approval check against threshold
@@ -303,12 +320,20 @@ export default class BillingService extends cds.ApplicationService {
             const billId = cds.utils.uuid();
             await INSERT.into(RepairBills).entries({
                 ID: billId,
+                invoiceNo: await nextInvoiceNo(),
                 rental_ID: rental.ID,
                 customer_ID: customerId,
+                equipment_ID: conditionLog?.equipment_ID || null,
                 damage_ID: damageId,
+                damageDescription: damage.description,
+                severity: damage.severity,
+                damageType: damage.damageType,
+                area: damage.area,
+                origin: damage.origin,
+                inspectionRef: damage.conditionLog_ID,
                 billDate: new Date().toISOString().split('T')[0],
                 partsCost: parts,
-                labourCost: labour + base,
+                labourCost: labour + base, // labour includes the base diagnostic fee
                 paintingCost: painting,
                 repairAmount: repair,
                 taxAmount: tax,
@@ -330,12 +355,12 @@ export default class BillingService extends cds.ApplicationService {
         // Action: Approve Repair Bill
         this.on('approveRepairBill', async (req) => {
             const { billId, approvalReason } = req.data;
-            const bill = await SELECT.one.from(RepairBills).where({ ID: billId });
-            if (!bill) return req.error(404, `Bill ${billId} not found`);
+            const bill = await readBill(req, billId, 'approve');
+            if (!bill) return;
 
             await UPDATE(RepairBills).set({
                 billingStatus: 'Approved',
-                approvalReason: approvalReason || 'Approved by Billing Clerk'
+                approvalReason: approvalReason || `Approved by ${req.user.id}`
             }).where({ ID: billId });
 
             return await SELECT.one.from(RepairBills).where({ ID: billId });
@@ -344,16 +369,19 @@ export default class BillingService extends cds.ApplicationService {
         // Action: Adjust Repair Bill (editable cost lines)
         this.on('adjustRepairBill', async (req) => {
             const { billId, partsCost, labourCost, paintingCost, reason } = req.data;
-            if (!reason) return req.error(400, 'Adjustment reason is mandatory');
+            if (!reason) return req.reject(400, 'Adjustment reason is mandatory');
 
-            const bill = await SELECT.one.from(RepairBills).where({ ID: billId });
-            if (!bill) return req.error(404, `Bill ${billId} not found`);
+            const bill = await readBill(req, billId, 'adjust');
+            if (!bill) return;
 
-            const parts = Number(partsCost ?? bill.partsCost);
-            const labour = Number(labourCost ?? bill.labourCost);
-            const painting = Number(paintingCost ?? bill.paintingCost);
-            const repair = parts + labour + painting;
-            const tax = Number((repair * 0.18).toFixed(2));
+            const parts = Number(partsCost ?? bill.partsCost ?? 0);
+            const labour = Number(labourCost ?? bill.labourCost ?? 0);
+            const painting = Number(paintingCost ?? bill.paintingCost ?? 0);
+            if ([parts, labour, painting].some((v) => v < 0)) {
+                return req.reject(400, 'Cost lines cannot be negative');
+            }
+            const repair = Number((parts + labour + painting).toFixed(2));
+            const tax = Number((repair * taxPercentOf(bill) / 100).toFixed(2));
             const total = Number((repair + tax).toFixed(2));
 
             await UPDATE(RepairBills).set({
@@ -373,7 +401,8 @@ export default class BillingService extends cds.ApplicationService {
         // Action: Reject Repair Bill
         this.on('rejectRepairBill', async (req) => {
             const { billId, reason } = req.data;
-            if (!reason) return req.error(400, 'Rejection reason is mandatory');
+            if (!reason) return req.reject(400, 'Rejection reason is mandatory');
+            if (!await readBill(req, billId, 'reject')) return;
 
             await UPDATE(RepairBills).set({
                 billingStatus: 'Rejected',
@@ -386,7 +415,8 @@ export default class BillingService extends cds.ApplicationService {
         // Action: Dispute Repair Bill
         this.on('disputeRepairBill', async (req) => {
             const { billId, reason } = req.data;
-            if (!reason) return req.error(400, 'Dispute reason is mandatory');
+            if (!reason) return req.reject(400, 'Dispute reason is mandatory');
+            if (!await readBill(req, billId, 'dispute')) return;
 
             await UPDATE(RepairBills).set({
                 billingStatus: 'Disputed',
@@ -399,28 +429,33 @@ export default class BillingService extends cds.ApplicationService {
         // Action: Post / Finalize Invoice
         this.on('postInvoice', async (req) => {
             const { billId } = req.data;
-            const bill = await SELECT.one.from(RepairBills).where({ ID: billId });
-            if (!bill) return req.error(404, `Bill ${billId} not found`);
+            const bill = await readBill(req, billId, 'post');
+            if (!bill) return;
 
-            if (bill.billingStatus !== 'Approved' && bill.billingStatus !== 'Adjusted') {
-                return req.error(400, `Only Approved or Adjusted bills can be invoiced. Current status: ${bill.billingStatus}`);
-            }
-
-            const invoiceNo = `INV-${Date.now().toString().slice(-8)}`;
+            // keep the invoice number the customer already knows (INV-<year>-<n>)
+            const invoiceNo = bill.invoiceNo || await nextInvoiceNo();
             await UPDATE(RepairBills).set({
                 billingStatus: 'Posted',
                 invoiceNo: invoiceNo
             }).where({ ID: billId });
 
-            // Create Outbox Integration Message for SAP S/4HANA
+            // Outbox message for SAP S/4HANA billing - it stays "Pending" until a sender picks it up
             const rental = await SELECT.one.from(Rentals).where({ ID: bill.rental_ID });
             await INSERT.into(IntegrationMessages).entries({
                 messageType: 'Damage Billing Request',
                 reference: rental ? rental.contractNo : billId,
                 targetSystem: 'SAP S/4HANA',
-                status: 'Success',
-                billingDocument: invoiceNo,
-                payload: JSON.stringify({ invoiceNo, billId, totalAmount: bill.totalAmount, date: new Date().toISOString() }),
+                status: 'Pending',
+                payload: JSON.stringify({
+                    invoiceNo,
+                    billId,
+                    customerId: bill.customer_ID,
+                    contractNo: rental?.contractNo,
+                    repairAmount: bill.repairAmount,
+                    taxAmount: bill.taxAmount,
+                    totalAmount: bill.totalAmount,
+                    date: new Date().toISOString()
+                }),
                 lastAttemptAt: new Date().toISOString()
             });
 

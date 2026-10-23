@@ -1,7 +1,7 @@
 {
   "xsappname": "sprint",
   "tenant-mode": "dedicated",
-  "description": "Security profile for Rental Equipment Tracking & Condition Logging (RETCL)",
+  "description": "Security profile for Rental Equipment Tracking & Condition Logging (RETS)",
   "scopes": [
     {
       "name": "$XSAPPNAME.YardWorker",
@@ -30,93 +30,66 @@
     {
       "name": "$XSAPPNAME.Auditor",
       "description": "Auditor - Read-only access to immutable condition logs and S/4 outbox"
-    },
-    {
-      "name": "$XSAPPNAME.Dispatcher",
-      "description": "Dispatcher"
-    },
-    {
-      "name": "$XSAPPNAME.YardWorker",
-      "description": "YardWorker"
-    },
-    {
-      "name": "$XSAPPNAME.Manager",
-      "description": "Manager"
-    },
-    {
-      "name": "$XSAPPNAME.Admin",
-      "description": "Admin"
-    },
-    {
-      "name": "$XSAPPNAME.Auditor",
-      "description": "Auditor"
-    },
-    {
-      "name": "$XSAPPNAME.Technician",
-      "description": "Technician"
-    },
-    {
-      "name": "$XSAPPNAME.BillingClerk",
-      "description": "BillingClerk"
     }
   ],
-  "attributes": [
-    {
-      "name": "Plant",
-      "description": "Plant / Yard location filter",
-      "valueType": "string"
-    }
-  ],
+  "attributes": [],
   "role-templates": [
     {
-      "name": "YardWorkerRole",
-      "description": "Role for Yard Workers performing inspections",
+      "name": "YardWorker",
+      "description": "Yard Worker",
       "scope-references": [
         "$XSAPPNAME.YardWorker"
       ]
     },
     {
-      "name": "DispatcherRole",
-      "description": "Role for Dispatchers managing contracts & check-outs",
+      "name": "Dispatcher",
+      "description": "Dispatcher",
       "scope-references": [
         "$XSAPPNAME.Dispatcher"
       ]
     },
     {
-      "name": "TechnicianRole",
-      "description": "Role for Workshop Technicians maintaining equipment",
+      "name": "Technician",
+      "description": "Technician",
       "scope-references": [
         "$XSAPPNAME.Technician"
       ]
     },
     {
-      "name": "BillingClerkRole",
-      "description": "Role for Billing Clerks handling customer repair invoices",
+      "name": "BillingClerk",
+      "description": "Billing Clerk",
       "scope-references": [
         "$XSAPPNAME.BillingClerk"
       ]
     },
     {
-      "name": "ManagerRole",
-      "description": "Role for Fleet Operations Managers",
+      "name": "Manager",
+      "description": "Fleet / Operations Manager",
       "scope-references": [
         "$XSAPPNAME.Manager"
       ]
     },
     {
-      "name": "AdminRole",
-      "description": "Administrator Role",
+      "name": "Admin",
+      "description": "Administrator",
       "scope-references": [
         "$XSAPPNAME.Admin"
       ]
     },
     {
-      "name": "AuditorRole",
-      "description": "Read-only Compliance and Auditor Role",
+      "name": "Auditor",
+      "description": "Auditor",
       "scope-references": [
         "$XSAPPNAME.Auditor"
       ]
     }
   ],
+  "oauth2-configuration": {
+    "redirect-uris": [
+      "https://*.applicationstudio.cloud.sap/**",
+      "https://*.hana.ondemand.com/**",
+      "http://localhost:5000/**"
+    ]
+  },
   "authorities-inheritance": false
 }

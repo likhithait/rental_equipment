@@ -1,10 +1,13 @@
 {
-  "_version": "1.49.0",
+  "_version": "1.65.0",
   "sap.app": {
     "id": "retcl.rentals",
     "type": "application",
     "title": "Rental Contracts & Allocations",
     "description": "Manage equipment rental contracts, customer allocations, reservation dates, and check-out status",
+    "applicationVersion": {
+      "version": "1.0.0"
+    },
     "dataSources": {
       "mainService": {
         "uri": "/rental/",
@@ -25,28 +28,24 @@
     }
   },
   "sap.ui5": {
-    "resources": {
-      "css": [
-        {
-          "uri": "style.css"
-        }
-      ]
-    },
-    "flexEnabled": true,
+    "flexEnabled": false,
     "dependencies": {
-      "minUI5Version": "1.120.0",
+      "minUI5Version": "1.153.0",
       "libs": {
         "sap.m": {},
         "sap.ui.core": {},
         "sap.fe.templates": {}
       }
     },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
     "models": {
       "": {
         "dataSource": "mainService",
         "preload": true,
         "settings": {
-          "synchronizationMode": "None",
           "operationMode": "Server",
           "autoExpandSelect": true,
           "earlyRequests": true
@@ -97,5 +96,9 @@
         }
       }
     }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
   }
 }

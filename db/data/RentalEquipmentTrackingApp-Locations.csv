@@ -1,0 +1,5 @@
+ID;locationName;locationType;plant;address;city;latitude;longitude
+10000000-0000-0000-0000-000000000001;Ahmedabad Main Yard;Yard;PLANT-AHMD;Ahmedabad Main Yard, SG Highway;Ahmedabad;23.022505;72.571362
+10000000-0000-0000-0000-000000000002;Mumbai Central Depot;Depot;1020;Port Logistics Hub;Mumbai;19.07609;72.877426
+10000000-0000-0000-0000-000000000003;Delhi NCR Yard;Depot;1030;Industrial Area Phase 2;Delhi;28.613939;77.209021
+10000000-0000-0000-0000-000000000004;Bangalore Tech Workshop;Workshop;1040;Electronic City Phase 1;Bangalore;12.971598;77.594563

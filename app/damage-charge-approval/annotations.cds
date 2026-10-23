@@ -195,10 +195,12 @@ annotate BillingService.RepairBills with {
 };
 
 annotate BillingService.DamagePhotos with @(
+    // photos are only added through the "Capture Photo" action (Cloudinary upload + SHA-256 seal)
+    // and must not be edited afterwards, otherwise the integrity hash would be meaningless
     Capabilities: {
-        InsertRestrictions: { Insertable: true },
+        InsertRestrictions: { Insertable: false },
         DeleteRestrictions: { Deletable: true },
-        UpdateRestrictions: { Updatable: true }
+        UpdateRestrictions: { Updatable: false }
     },
     UI.LineItem: [
         { Value: mediaUrl, Label: 'Photo Preview' },

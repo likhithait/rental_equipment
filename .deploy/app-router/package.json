@@ -5,5 +5,8 @@
   },
   "scripts": {
     "start": "node node_modules/@sap/approuter/approuter.js"
+  },
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
   }
 }

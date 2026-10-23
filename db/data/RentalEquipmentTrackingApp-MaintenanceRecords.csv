@@ -1,0 +1,3 @@
+ID;equipment_ID;maintenanceType;maintenanceDate;description;serviceProvider;cost;nextMaintenanceDate;status
+91000000-0000-0000-0000-000000000001;30000000-0000-0000-0000-000000000001;Preventive;2026-11-15;250-hour scheduled lubrication, filter replacement and hydraulic system calibration.;CAT Authorized Service Centre Ahmedabad;14500;2026-12-15;Planned
+91000000-0000-0000-0000-000000000002;30000000-0000-0000-0000-000000000006;Preventive;2026-10-10;Annual electrical alternator calibration and engine filter overhaul.;Atlas Copco Field Support;8500;2027-01-10;Completed

@@ -46,8 +46,12 @@ service MaintenanceService {
     entity DamageRecords as projection on my.DamageRecords;
 
     // Actions for Workshop & Technician Operations
-    action createRepairJob(damageId: UUID, technician: String) returns RepairJobs;
-    action completeRepairJob(repairJobId: UUID, labourHours: Decimal(5,2), actualCost: Decimal(12,2), repairDetails: String, afterPhotoUrl: String) returns RepairJobs;
-    action completeMaintenanceRecord(recordId: UUID, cost: Decimal(12,2), nextServiceDate: Date) returns MaintenanceRecords;
-    action releaseEquipmentToAvailable(equipmentId: UUID, reason: String) returns Equipment;
+    @requires: ['Technician', 'Manager', 'Admin']
+    action createRepairJob(damageId: UUID not null, technician: String) returns RepairJobs;
+    @requires: ['Technician', 'Manager', 'Admin']
+    action completeRepairJob(repairJobId: UUID not null, labourHours: Decimal(5,2), actualCost: Decimal(12,2), repairDetails: String, afterPhotoUrl: String) returns RepairJobs;
+    @requires: ['Technician', 'Manager', 'Admin']
+    action completeMaintenanceRecord(recordId: UUID not null, cost: Decimal(12,2), nextServiceDate: Date) returns MaintenanceRecords;
+    @requires: ['Technician', 'Manager', 'Admin']
+    action releaseEquipmentToAvailable(equipmentId: UUID not null, reason: String) returns Equipment;
 }

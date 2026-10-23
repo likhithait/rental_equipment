@@ -27,6 +27,17 @@ try {
     // Ignore .env read error
 }
 
+// Cloud Foundry: credentials of a bound user-provided service (mta.yaml resource sprint-cloudinary)
+try {
+    const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+    for (const instance of Object.values(vcap).flat()) {
+        const url = instance?.credentials?.CLOUDINARY_URL;
+        if (url && !process.env.CLOUDINARY_URL) process.env.CLOUDINARY_URL = url;
+    }
+} catch (e) {
+    console.error('[Cloudinary] Could not read VCAP_SERVICES:', e.message);
+}
+
 // Extract and parse Cloudinary credentials
 let cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 let apiKey = process.env.CLOUDINARY_API_KEY;
@@ -44,6 +55,9 @@ if (process.env.CLOUDINARY_URL) {
 }
 
 const isConfigured = Boolean(cloudName && apiKey && apiSecret);
+
+export const isCloudinaryConfigured = () => isConfigured;
+export const cloudinaryCloudName = () => (isConfigured ? cloudName : null);
 
 if (isConfigured) {
     cloudinary.config({
@@ -70,7 +84,7 @@ export function computeSha256(input) {
         buffer = input;
     } else if (typeof input === 'string') {
         if (input.startsWith('data:')) {
-            const matches = input.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            const matches = input.match(/^data:([A-Za-z0-9.+/-]+);base64,(.+)$/s);
             if (matches && matches.length === 3) {
                 mimeType = matches[1];
                 buffer = Buffer.from(matches[2], 'base64');
@@ -109,12 +123,7 @@ export async function uploadEvidencePhoto({
         ? imageBase64 
         : `data:${mimeType};base64,${buffer.toString('base64')}`;
 
-    // 2. Check if Cloudinary is configured
-    const isConfigured = Boolean(
-        process.env.CLOUDINARY_URL || 
-        (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY)
-    );
-
+    // 2. Upload to Cloudinary when credentials are complete
     if (isConfigured) {
         try {
             const uploadResponse = await cloudinary.uploader.upload(dataUri, {
@@ -134,6 +143,7 @@ export async function uploadEvidencePhoto({
                 publicId: uploadResponse.public_id,
                 sha256,
                 format: uploadResponse.format,
+                mimeType,
                 isCloudinary: true
             };
         } catch (cloudErr) {
@@ -148,6 +158,7 @@ export async function uploadEvidencePhoto({
         publicId: mockPublicId,
         sha256,
         format: mimeType.split('/')[1] || 'jpeg',
+        mimeType,
         isCloudinary: false
     };
 }

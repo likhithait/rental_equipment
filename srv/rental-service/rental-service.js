@@ -1,4 +1,5 @@
 import cds from '@sap/cds';
+import { purgeAbandonedDrafts } from '../common/drafts.js';
 
 export default class RentalService extends cds.ApplicationService {
     async init() {
@@ -7,14 +8,7 @@ export default class RentalService extends cds.ApplicationService {
         this.before('READ', 'Equipment', async (req) => {
             // Only clean up on list queries, not when editing a specific draft by key
             if (!req.params?.length && !req.query?.SELECT?.one) {
-                try {
-                    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-                    await cds.db.run(
-                        DELETE.from('RentalService.Equipment.drafts').where`equipmentName is null and location_ID is null and createdAt < ${oneHourAgo}`
-                    );
-                } catch (e) {
-                    // Ignore if draft table is not engaged
-                }
+                await purgeAbandonedDrafts(Equipment.drafts, 'equipmentName is null and location_ID is null');
             }
         });
 
@@ -79,13 +73,7 @@ export default class RentalService extends cds.ApplicationService {
         // Automatically clean up blank or abandoned customer drafts so they never clutter the list
         this.before('READ', 'Customers', async (req) => {
             if (!req.params?.length && !req.query?.SELECT?.one) {
-                try {
-                    await cds.db.run(
-                        DELETE.from('RentalService.Customers.drafts').where`companyName is null or companyName = ''`
-                    );
-                } catch (e) {
-                    // Ignore if draft table not engaged
-                }
+                await purgeAbandonedDrafts(Customers.drafts, "companyName is null or companyName = ''");
             }
         });
 
@@ -144,13 +132,7 @@ export default class RentalService extends cds.ApplicationService {
         // Automatically clean up blank or abandoned location drafts so they never clutter the list
         this.before('READ', 'Locations', async (req) => {
             if (!req.params?.length && !req.query?.SELECT?.one) {
-                try {
-                    await cds.db.run(
-                        DELETE.from('RentalService.Locations.drafts').where`locationName is null or locationName = ''`
-                    );
-                } catch (e) {
-                    // Ignore if draft table not engaged
-                }
+                await purgeAbandonedDrafts(Locations.drafts, "locationName is null or locationName = ''");
             }
         });
 
@@ -332,7 +314,7 @@ export default class RentalService extends cds.ApplicationService {
                     req.error(400, `Equipment "${eq.equipmentName}" (${eq.serialNumber}) is currently undergoing repair in the workshop (Status: ${activeRepairs[0].status}). It cannot be rented until the repair is completed.`, fieldName);
                     return null;
                 }
-            } catch (e) {}
+            } catch { /* optional lookup - ignore */ }
 
             return eq;
         }
@@ -353,11 +335,23 @@ export default class RentalService extends cds.ApplicationService {
             }
         });
 
+        // Closed, cancelled or returned contracts are history - they cannot be edited any more
+        this.before('EDIT', 'Rentals', async (req) => {
+            const rental = await SELECT.one.from(Rentals).columns('contractNo', 'rentalStatus').where({ ID: req.params[0]?.ID });
+            if (rental && ['Returned', 'Closed', 'Cancelled'].includes(rental.rentalStatus)) {
+                return req.reject(409, `Contract ${rental.contractNo} is ${rental.rentalStatus} and can no longer be changed.`);
+            }
+        });
+
         // Strict validation: Rentals require contract number, customer, dates, and non-booked equipment
         this.before('SAVE', 'Rentals', async (req) => {
+            const existing = await SELECT.one.from(Rentals).where({ ID: req.data.ID });
+            const activeItems = existing ? await SELECT.from(RentalItems).columns('equipment_ID').where({ rental_ID: req.data.ID }) : [];
+            const alreadyAllocated = new Set(activeItems.map((i) => i.equipment_ID));
+
             // Mandatory & auto-generated contract number
             if (!req.data.contractNo || !String(req.data.contractNo).trim()) {
-                req.data.contractNo = await getNextContractNumber();
+                req.data.contractNo = existing?.contractNo || await getNextContractNumber();
             }
 
             if (!req.data.customer_ID) {
@@ -368,6 +362,8 @@ export default class RentalService extends cds.ApplicationService {
             }
             if (!req.data.expectedReturnDate) {
                 req.error(400, 'Expected Return Date is mandatory', 'expectedReturnDate');
+            } else if (req.data.rentalDate && req.data.expectedReturnDate < req.data.rentalDate) {
+                req.error(400, 'Expected Return Date cannot be before the Rental Start Date', 'expectedReturnDate');
             }
 
             // Retrieve all items for this rental draft
@@ -378,7 +374,7 @@ export default class RentalService extends cds.ApplicationService {
                     items = await cds.db.run(
                         SELECT.from('RentalService.RentalItems.drafts').where({ rental_ID: rentalId })
                     );
-                } catch (e) {}
+                } catch { /* optional lookup - ignore */ }
             }
 
             if (!items || items.length === 0) {
@@ -387,6 +383,7 @@ export default class RentalService extends cds.ApplicationService {
             }
 
             const seenEquipment = new Set();
+            const newEquipment = [];
             for (const item of items) {
                 if (!item.equipment_ID) {
                     req.error(400, 'All allocated item rows must have an Equipment Asset selected.', 'items');
@@ -399,22 +396,35 @@ export default class RentalService extends cds.ApplicationService {
                 }
                 seenEquipment.add(item.equipment_ID);
 
-                // Full global booking & status validation
-                await validateEquipmentAllocation(item.equipment_ID, rentalId, item.ID, req, 'items');
+                // Equipment that this contract already holds is rented out to it - only newly
+                // allocated equipment has to pass the global booking & status validation
+                if (!alreadyAllocated.has(item.equipment_ID)) {
+                    newEquipment.push(item.equipment_ID);
+                    await validateEquipmentAllocation(item.equipment_ID, rentalId, item.ID, req, 'items');
+                }
             }
 
-            // Set contract status to Active upon creation
-            req.data.rentalStatus = 'Active';
+            // Set contract status to Active upon creation, keep the status of an existing contract
+            req.data.rentalStatus = existing ? existing.rentalStatus : 'Active';
+            req._newContract = !existing;
+            req._newEquipment = newEquipment;
         });
 
-        // After contract is saved: transition equipment to RentedOut and items to OutOnRent
-        this.after('SAVE', 'Rentals', async (data, req) => {
+        // After contract is saved: transition newly allocated equipment to RentedOut and items to OutOnRent
+        // (re-saving an existing contract must not touch equipment that was returned in the meantime)
+        this.after('SAVE', 'Rentals', async (_, req) => {
+            // CAP returns only the keys after CREATE - the activated contract is in req.data
+            const data = req.data;
             const rentalId = data.ID;
-            const items = await cds.db.run(SELECT.from(RentalItems).where({ rental_ID: rentalId }));
+            const newEquipment = new Set(req._newEquipment || []);
+            if (!newEquipment.size || !['Active', 'Booked'].includes(data.rentalStatus)) return;
+
+            const items = (await cds.db.run(SELECT.from(RentalItems).where({ rental_ID: rentalId })))
+                .filter((item) => newEquipment.has(item.equipment_ID));
 
             // Update item statuses to OutOnRent
             await cds.db.run(
-                UPDATE(RentalItems).set({ itemStatus: 'OutOnRent' }).where({ rental_ID: rentalId })
+                UPDATE(RentalItems).set({ itemStatus: 'OutOnRent' }).where({ ID: { in: items.map((i) => i.ID) } })
             );
 
             // Update each allocated equipment asset to RentedOut
@@ -435,14 +445,16 @@ export default class RentalService extends cds.ApplicationService {
                 }
             }
 
-            // Record rental status history
-            await cds.db.run(
-                INSERT.into(RentalStatusHistory).entries({
-                    rental_ID: rentalId,
-                    oldStatus: 'Booked',
-                    newStatus: 'Active'
-                })
-            );
+            // Record rental status history of a new contract
+            if (req._newContract) {
+                await cds.db.run(
+                    INSERT.into(RentalStatusHistory).entries({
+                        rental_ID: rentalId,
+                        oldStatus: 'Booked',
+                        newStatus: 'Active'
+                    })
+                );
+            }
         });
 
         // Auto-fill item details (dates, rate, status) on item draft creation
@@ -564,9 +576,9 @@ export default class RentalService extends cds.ApplicationService {
         this.on('checkOutRental', async (req) => {
             const { rentalId } = req.data;
             const rental = await SELECT.one.from(Rentals).where({ ID: rentalId });
-            if (!rental) return req.error(404, `Rental ${rentalId} not found`);
+            if (!rental) return req.reject(404, `Rental ${rentalId} not found`);
             if (rental.rentalStatus !== 'Booked') {
-                return req.error(400, `Only Booked rentals can be checked out. Current status: ${rental.rentalStatus}`);
+                return req.reject(409, `Only Booked rentals can be checked out. Current status: ${rental.rentalStatus}`);
             }
 
             const items = await SELECT.from(RentalItems).where({ rental_ID: rentalId });
@@ -603,9 +615,9 @@ export default class RentalService extends cds.ApplicationService {
         this.on('checkInRental', async (req) => {
             const { rentalId, actualReturnDate } = req.data;
             const rental = await SELECT.one.from(Rentals).where({ ID: rentalId });
-            if (!rental) return req.error(404, `Rental ${rentalId} not found`);
-            if (rental.rentalStatus !== 'Active') {
-                return req.error(400, `Only Active rentals can be checked in. Current status: ${rental.rentalStatus}`);
+            if (!rental) return req.reject(404, `Rental ${rentalId} not found`);
+            if (!['Active', 'Overdue'].includes(rental.rentalStatus)) {
+                return req.reject(409, `Only Active or Overdue rentals can be checked in. Current status: ${rental.rentalStatus}`);
             }
 
             const returnDate = actualReturnDate || new Date().toISOString().split('T')[0];
@@ -623,8 +635,9 @@ export default class RentalService extends cds.ApplicationService {
                 newStatus: 'Returned'
             });
 
-            // Equipment is returned and now pending yard inspection
+            // Equipment that is still out on rent is returned and now pending yard inspection
             for (const item of items) {
+                if (item.itemStatus === 'Returned') continue;
                 await UPDATE(RentalItems).set({ itemStatus: 'Returned' }).where({ ID: item.ID });
                 if (item.equipment_ID) {
                     const eq = await SELECT.one.from(Equipment).where({ ID: item.equipment_ID });
@@ -645,7 +658,10 @@ export default class RentalService extends cds.ApplicationService {
         this.on('cancelRental', async (req) => {
             const { rentalId, reason } = req.data;
             const rental = await SELECT.one.from(Rentals).where({ ID: rentalId });
-            if (!rental) return req.error(404, `Rental ${rentalId} not found`);
+            if (!rental) return req.reject(404, `Rental ${rentalId} not found`);
+            if (!['Booked', 'Active', 'Overdue'].includes(rental.rentalStatus)) {
+                return req.reject(409, `Contract ${rental.contractNo} is ${rental.rentalStatus} and cannot be cancelled.`);
+            }
 
             await UPDATE(Rentals).set({ rentalStatus: 'Cancelled' }).where({ ID: rentalId });
             await INSERT.into(RentalStatusHistory).entries({
@@ -654,12 +670,21 @@ export default class RentalService extends cds.ApplicationService {
                 newStatus: 'Cancelled'
             });
 
-            // Free allocated equipment back to Available
-            const items = await SELECT.from(RentalItems).where({ rental_ID: rentalId });
+            // Free equipment that is still allocated to this contract back to Available
+            // (returned items and equipment that is damaged or in repair are left as they are)
+            const items = await SELECT.from(RentalItems).where({ rental_ID: rentalId, itemStatus: { in: ['Reserved', 'OutOnRent'] } });
             for (const item of items) {
-                if (item.equipment_ID) {
+                await UPDATE(RentalItems).set({ itemStatus: 'Returned' }).where({ ID: item.ID });
+                if (!item.equipment_ID) continue;
+                const eq = await SELECT.one.from(Equipment).where({ ID: item.equipment_ID });
+                if (eq?.currentStatus === 'RentedOut') {
                     await UPDATE(Equipment).set({ currentStatus: 'Available' }).where({ ID: item.equipment_ID });
-                    await UPDATE(RentalItems).set({ itemStatus: 'Returned' }).where({ ID: item.ID });
+                    await INSERT.into(AssetStatusHistory).entries({
+                        equipment_ID: item.equipment_ID,
+                        oldStatus: eq.currentStatus,
+                        newStatus: 'Available',
+                        reason: `Contract ${rental.contractNo} cancelled${reason ? ': ' + reason : ''}`
+                    });
                 }
             }
 
@@ -670,7 +695,16 @@ export default class RentalService extends cds.ApplicationService {
         this.on('transferEquipment', async (req) => {
             const { equipmentId, toLocationId, reason } = req.data;
             const eq = await SELECT.one.from(Equipment).where({ ID: equipmentId });
-            if (!eq) return req.error(404, `Equipment ${equipmentId} not found`);
+            if (!eq) return req.reject(404, `Equipment ${equipmentId} not found`);
+            if (!await SELECT.one.from(Locations).columns('ID').where({ ID: toLocationId })) {
+                return req.reject(404, `Location ${toLocationId} not found`);
+            }
+            if (eq.location_ID === toLocationId) {
+                return req.reject(400, `${eq.equipmentName} is already stationed at this location`);
+            }
+            if (eq.currentStatus === 'RentedOut') {
+                return req.reject(409, `${eq.equipmentName} is rented out and cannot be transferred until it is returned`);
+            }
 
             await INSERT.into(EquipmentTransfers).entries({
                 equipment_ID: equipmentId,
@@ -679,9 +713,9 @@ export default class RentalService extends cds.ApplicationService {
                 reason: reason || 'Relocation transfer'
             });
 
+            // the operational status (e.g. InRepair) does not change by moving the asset
             await UPDATE(Equipment).set({
-                location_ID: toLocationId,
-                currentStatus: 'Available'
+                location_ID: toLocationId
             }).where({ ID: equipmentId });
 
             return await SELECT.one.from(Equipment).where({ ID: equipmentId });
@@ -692,14 +726,14 @@ export default class RentalService extends cds.ApplicationService {
             const locationId = req.params[0]?.ID || req.params?.find(p => p.ID)?.ID;
             const { equipmentId, reason } = req.data;
 
-            if (!locationId) return req.error(400, 'Depot Location ID is missing');
-            if (!equipmentId) return req.error(400, 'Please select an equipment asset to assign');
+            if (!locationId) return req.reject(400, 'Depot Location ID is missing');
+            if (!equipmentId) return req.reject(400, 'Please select an equipment asset to assign');
 
             const loc = await SELECT.one.from(Locations).where({ ID: locationId });
-            if (!loc) return req.error(404, 'Depot Location not found');
+            if (!loc) return req.reject(404, 'Depot Location not found');
 
             const eq = await SELECT.one.from(Equipment).where({ ID: equipmentId });
-            if (!eq) return req.error(404, 'Equipment not found');
+            if (!eq) return req.reject(404, 'Equipment not found');
 
             // Record equipment transfer log
             await INSERT.into(EquipmentTransfers).entries({
@@ -759,7 +793,7 @@ export default class RentalService extends cds.ApplicationService {
                 for (const r of repairJobs || []) {
                     if (r.equipment_ID) bookedEqIds.add(r.equipment_ID);
                 }
-            } catch (e) {}
+            } catch { /* optional lookup - ignore */ }
 
             const cqn = SELECT.from(Equipment);
             if (req.query.SELECT.columns) cqn.SELECT.columns = req.query.SELECT.columns;
@@ -795,7 +829,7 @@ export default class RentalService extends cds.ApplicationService {
                 const nextNo = await getNextContractNumber();
                 await cds.db.run(UPDATE('RentalEquipmentTrackingApp.Rentals').set({ contractNo: nextNo }).where({ ID: c.ID }));
             }
-        } catch (e) {}
+        } catch { /* optional lookup - ignore */ }
 
         try {
             const activeAllocations = await cds.db.run(
@@ -811,7 +845,7 @@ export default class RentalService extends cds.ApplicationService {
                     );
                 }
             }
-        } catch (e) {}
+        } catch { /* optional lookup - ignore */ }
 
         await super.init();
     }

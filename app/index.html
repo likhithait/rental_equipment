@@ -1,938 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAP Fiori Launchpad - Rental Equipment Tracking</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=72:wght@300;400;600;700&display=swap">
-    <script src="/fiori-auth.js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rental Equipment Tracking System</title>
+
+    <!-- SAP Fiori launchpad (sandbox): tiles depend on the roles of the logged-in user -->
     <script>
         (function () {
-            const urlParams = new URLSearchParams(window.location.search);
-            const currentAppId = urlParams.get('app');
-            const APP_REGISTRY = {
-                'customer-management': { title: 'Customer Management', ns: 'retcl.customermanagement', path: '/customer-management/webapp' },
-                'damage-charge-approval': { title: 'Damage Charge Approval', ns: 'retcl.damagechargeapproval', path: '/damage-charge-approval/webapp' },
-                'fleet-overview': { title: 'Fleet Overview & Asset Detail', ns: 'retcl.fleetoverview', path: '/fleet-overview/webapp' },
-                'inspections': { title: 'Condition Logging & Inspections', ns: 'retcl.inspections', path: '/inspections/webapp' },
-                'locations': { title: 'Depot & Yard Locations', ns: 'retcl.locations', path: '/locations/webapp' },
-                'maintenance-planner': { title: 'Maintenance Planner & Schedules', ns: 'retcl.maintenanceplanner', path: '/maintenance-planner/webapp' },
-                'rentals': { title: 'Rental Contracts & Allocations', ns: 'retcl.rentals', path: '/rentals/webapp' },
-                'repair-jobs': { title: 'Workshop Repair Jobs', ns: 'retcl.repairjobs', path: '/repair-jobs/webapp' }
+            // small synchronous GET (needed before the launchpad starts)
+            var get = function (url, fallback) {
+                try {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open("GET", url, false);
+                    xhr.setRequestHeader("Accept", "application/json");
+                    xhr.send();
+                    if (xhr.status === 200) return JSON.parse(xhr.responseText);
+                } catch (e) { /* ignore */ }
+                return fallback;
             };
-            const appCfg = currentAppId ? APP_REGISTRY[currentAppId] : null;
-            window.__FIORI_APP_CONFIG = appCfg;
-            window.__FIORI_CURRENT_APP_ID = currentAppId;
 
-            if (appCfg) {
-                document.title = appCfg.title;
-                const resRoots = JSON.stringify({ [appCfg.ns]: appCfg.path });
-                document.write(
-                    '<script ' +
-                    'id="sap-ui-bootstrap" ' +
-                    'src="https://ui5.sap.com/resources/sap-ui-core.js" ' +
-                    'data-sap-ui-theme="sap_horizon" ' +
-                    'data-sap-ui-resourceroots=\'' + resRoots + '\' ' +
-                    'data-sap-ui-onInit="module:sap/ui/core/ComponentSupport" ' +
-                    'data-sap-ui-compatVersion="edge" ' +
-                    'data-sap-ui-async="true" ' +
-                    'data-sap-ui-frameOptions="trusted">' +
-                    '<\/script>'
-                );
-            }
-        })();
-    </script>
-    <style>
-        :root {
-            --sapShellColor: #1d2d3e;
-            --sapShellGradient: linear-gradient(135deg, #1d2d3e 0%, #0d1926 100%);
-            --sapBackgroundColor: #f5f6f7;
-            --sapCardBg: #ffffff;
-            --sapTextColor: #1d2d3e;
-            --sapSubTextColor: #556b82;
-            --sapPrimary: #0070f2;
-            --sapPrimaryHover: #0056b3;
-            --sapAccent: #0a6ed1;
-            --sapSuccess: #107e3e;
-            --sapWarning: #e9730c;
-            --sapError: #bb0000;
-            --sapBorderColor: #d9d9d9;
-            --sapShadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            --sapRadius: 10px;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: '72', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            background-color: var(--sapBackgroundColor);
-            color: var(--sapTextColor);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Fiori Elements Sub-App Mode (when launched with ?app=...) */
-        body.fiori-subapp-mode {
-            height: 100% !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: hidden !important;
-            display: flex !important;
-            flex-direction: column !important;
-            background-color: var(--sapBackgroundColor);
-        }
-
-        body.fiori-subapp-mode #launchpad-view {
-            display: none !important;
-        }
-
-        body.fiori-subapp-mode [data-sap-ui-component],
-        body.fiori-subapp-mode .sapUiComponentContainer,
-        body.fiori-subapp-mode .sapUiUIArea {
-            height: calc(100vh - 42px) !important;
-            width: 100% !important;
-            flex: 1 1 auto !important;
-            position: relative !important;
-        }
-
-        body.fiori-subapp-mode .sapUxAPObjectPageFooter,
-        body.fiori-subapp-mode .sapMPageFooter,
-        body.fiori-subapp-mode .sapFDynamicPageFooter {
-            z-index: 100 !important;
-        }
-
-        /* 2. SAP FIORI LAUNCHPAD MAIN */
-        #launchpad-view {
-            display: none;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        .fiori-shell {
-            background: var(--sapShellGradient);
-            color: #ffffff;
-            padding: 0 1.5rem;
-            height: 3.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-
-        .shell-brand {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .sap-logo {
-            height: 28px;
-        }
-
-        .shell-title {
-            font-size: 1.15rem;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-        }
-
-        .shell-subtitle {
-            font-size: 0.85rem;
-            color: #9cb5cf;
-            padding-left: 0.75rem;
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .shell-actions {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .user-capsule {
-            background: rgba(255, 255, 255, 0.12);
-            padding: 0.3rem 0.85rem 0.3rem 0.4rem;
-            border-radius: 24px;
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 0.65rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .user-avatar-circle {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: var(--sapPrimary);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.75rem;
-        }
-
-        .user-role-tag {
-            background: #2dd4bf;
-            color: #0d1926;
-            font-size: 0.7rem;
-            font-weight: 800;
-            padding: 0.15rem 0.5rem;
-            border-radius: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .btn-shell {
-            background: rgba(255, 255, 255, 0.12);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            padding: 0.35rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-        }
-
-        .btn-shell:hover {
-            background: rgba(255, 255, 255, 0.22);
-            border-color: #ffffff;
-        }
-
-        .scope-banner {
-            background: #eef4fc;
-            border-bottom: 1px solid #cfe0f5;
-            padding: 0.75rem 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.88rem;
-            color: #1a365d;
-        }
-
-        .scope-left {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-
-        .scope-right {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .launchpad-container {
-            max-width: 1380px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem 4rem;
-            width: 100%;
-            flex: 1;
-        }
-
-        /* KPI Banner */
-        .kpi-banner {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.25rem;
-            margin-bottom: 2.5rem;
-        }
-
-        .kpi-card {
-            background: var(--sapCardBg);
-            padding: 1.25rem 1.5rem;
-            border-radius: var(--sapRadius);
-            box-shadow: var(--sapShadow);
-            border-top: 4px solid var(--sapPrimary);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        }
-
-        .kpi-card.success {
-            border-color: var(--sapSuccess);
-        }
-
-        .kpi-card.warning {
-            border-color: var(--sapWarning);
-        }
-
-        .kpi-card.error {
-            border-color: var(--sapError);
-        }
-
-        .kpi-label {
-            font-size: 0.85rem;
-            color: var(--sapSubTextColor);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .kpi-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin: 0.35rem 0;
-            color: var(--sapTextColor);
-        }
-
-        .kpi-sub {
-            font-size: 0.8rem;
-            color: var(--sapSubTextColor);
-        }
-
-        /* Tile Groups */
-        .tile-group {
-            margin-bottom: 2.5rem;
-            transition: all 0.2s;
-        }
-
-        .group-header {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 1.25rem;
-            color: #1a2d42;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 2px solid #e1e7ed;
-            padding-bottom: 0.5rem;
-        }
-
-        .group-header-title {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-
-        .tiles-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .fiori-tile {
-            background: var(--sapCardBg);
-            border: 1px solid var(--sapBorderColor);
-            border-radius: var(--sapRadius);
-            padding: 1.5rem;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-height: 185px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-            transition: all 0.2s ease-in-out;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-        }
-
-        .fiori-tile:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 24px rgba(0, 112, 242, 0.15);
-            border-color: var(--sapPrimary);
-        }
-
-        .fiori-tile::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--sapPrimary);
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .fiori-tile:hover::before {
-            opacity: 1;
-        }
-
-        .tile-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.75rem;
-        }
-
-        .tile-icon {
-            font-size: 1.75rem;
-            line-height: 1;
-        }
-
-        .tile-badge {
-            background: #eef4fc;
-            color: var(--sapPrimary);
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.6rem;
-            border-radius: 12px;
-        }
-
-        .tile-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--sapTextColor);
-            margin-bottom: 0.4rem;
-        }
-
-        .tile-desc {
-            font-size: 0.85rem;
-            color: var(--sapSubTextColor);
-            line-height: 1.4;
-            flex-grow: 1;
-        }
-
-        .tile-footer {
-            margin-top: 1rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--sapPrimary);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .tile-role-pill {
-            font-size: 0.7rem;
-            color: #64748b;
-            background: #f1f5f9;
-            padding: 0.2rem 0.45rem;
-            border-radius: 4px;
-        }
-
-        .fiori-footer {
-            background: #e5ebf1;
-            padding: 1rem 1.5rem;
-            font-size: 0.8rem;
-            color: var(--sapSubTextColor);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid #d4dee7;
-        }
-
-        /* Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(13, 25, 38, 0.65);
-            backdrop-filter: blur(4px);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            padding: 1rem;
-        }
-
-        .modal-content {
-            background: #ffffff;
-            border-radius: 14px;
-            max-width: 560px;
-            width: 100%;
-            padding: 2rem;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            position: relative;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.25rem;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 0.75rem;
-        }
-
-        .modal-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #1e293b;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #64748b;
-            line-height: 1;
-        }
-    </style>
-</head>
-
-<body>
-    <script>
-        if (window.__FIORI_APP_CONFIG) {
-            document.body.classList.add('fiori-subapp-mode', 'sapUiBody', 'sapUiSizeCompact');
-            initSubAppGuard(window.__FIORI_CURRENT_APP_ID, window.__FIORI_APP_CONFIG.title);
-            document.write(
-                '<div data-sap-ui-component ' +
-                'data-name="' + window.__FIORI_APP_CONFIG.ns + '" ' +
-                'data-id="container" ' +
-                'data-settings=\'{"id" : "' + window.__FIORI_APP_CONFIG.ns + '"}\' ' +
-                'style="height: calc(100vh - 42px); width: 100%;">' +
-                '</div>'
-            );
-        }
-    </script>
-
-    <!-- 2. LAUNCHPAD VIEW -->
-    <div id="launchpad-view">
-
-        <header class="fiori-shell">
-            <div class="shell-brand">
-                <svg class="sap-logo" viewBox="0 0 70 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 0H70V34H0V0Z" fill="#0070F2" />
-                    <path
-                        d="M12.8 23.5H9.2L16.2 8.5H19.8L26.8 23.5H23.2L21.7 20.3H14.3L12.8 23.5ZM15.5 17.6H20.5L18 12.3L15.5 17.6ZM34.2 23.7C31.5 23.7 29.5 22.8 28.1 21L29.9 18.9C31 20.4 32.5 21.1 34.4 21.1C35.9 21.1 37.1 20.6 37.1 19.5C37.1 18.6 36.3 18.1 34.6 17.6L32.7 17.1C29.8 16.3 28.5 14.8 28.5 12.6C28.5 10.1 30.6 8.3 34.1 8.3C36.4 8.3 38.2 9 39.5 10.3L37.8 12.5C36.7 11.4 35.5 10.9 34 10.9C32.8 10.9 31.8 11.4 31.8 12.4C31.8 13.2 32.5 13.7 34.2 14.2L36 14.7C39.2 15.6 40.5 17.1 40.5 19.3C40.5 22 38.3 23.7 34.2 23.7ZM44.2 23.5V8.5H50.5C54.1 8.5 56.6 10.5 56.6 14C56.6 17.5 54.1 19.5 50.5 19.5H47.4V23.5H44.2ZM47.4 16.9H50.3C52.1 16.9 53.3 15.9 53.3 14C53.3 12.1 52.1 11.1 50.3 11.1H47.4V16.9Z"
-                        fill="white" />
-                </svg>
-                <span class="shell-title">Rental Equipment Tracking & Condition Logging</span>
-                <span class="shell-subtitle">SAP S/4HANA Cloud & BTP CAP</span>
-            </div>
-
-            <div class="shell-actions">
-                <div class="user-capsule">
-                    <div class="user-avatar-circle" id="shell-user-avatar">AD</div>
-                    <span id="shell-user-name" style="font-weight:600;">Administrator</span>
-                    <span class="user-role-tag" id="shell-user-role">ADMIN</span>
-                </div>
-
-                <button class="btn-shell" onclick="handleLogout()" title="Log out"
-                    style="background:rgba(239, 68, 68, 0.2); border-color:rgba(239, 68, 68, 0.4);">
-                    <span>🚪 Sign Out</span>
-                </button>
-            </div>
-        </header>
-
-        <div class="scope-banner">
-            <div class="scope-left">
-                <span style="font-size:1.1rem;">🛡️</span>
-                <span>
-                    Signed in as <strong id="banner-user-name">Vikram Mehta</strong> &bull;
-                    Role: <strong id="banner-user-role" style="color:var(--sapPrimary);">Administrator</strong> &bull;
-                    Location: <strong id="banner-user-plant">PLANT-AHMD (Ahmedabad Main Yard)</strong>
-                </span>
-            </div>
-            <div class="scope-right">
-                <span id="banner-app-count"
-                    style="font-weight:700; background:#ffffff; border:1px solid #cbd5e1; padding:0.25rem 0.65rem; border-radius:12px; font-size:0.8rem;">
-                    10 of 10 Apps Authorized
-                </span>
-            </div>
-        </div>
-
-        <main class="launchpad-container">
-
-            <!-- Executive KPI Banner -->
-            <section class="kpi-banner">
-                <div class="kpi-card success" id="kpi-available-card"
-                    onclick="window.location.href='/fleet-overview/webapp/index.html'"
-                    title="Click to view Fleet Overview" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager">
-                    <span class="kpi-label">Available Fleet</span>
-                    <div class="kpi-value" id="kpi-available">2 Assets</div>
-                    <span class="kpi-sub" id="kpi-available-sub">Ready for Dispatch &bull; Yard A</span>
-                </div>
-                <div class="kpi-card" id="kpi-rented-card" onclick="window.location.href='/rentals/webapp/index.html'"
-                    title="Click to view Rental Contracts" data-roles="Admin,Dispatcher,BillingClerk,Manager">
-                    <span class="kpi-label">Rented Out Fleet</span>
-                    <div class="kpi-value" id="kpi-rented">4 Assets</div>
-                    <span class="kpi-sub" id="kpi-rented-sub">Active On-Site &bull; XYZ Construction</span>
-                </div>
-                <div class="kpi-card warning" id="kpi-pending-card"
-                    onclick="window.location.href='/damage-charge-approval/webapp/index.html'"
-                    title="Click to view Damage Approvals" data-roles="Admin,BillingClerk,Manager,Auditor">
-                    <span class="kpi-label">Pending Approval</span>
-                    <div class="kpi-value" id="kpi-pending">&#8377;35,400</div>
-                    <span class="kpi-sub" id="kpi-pending-sub">Invoice #9000123456 &bull; Damage Bill</span>
-                </div>
-                <div class="kpi-card error" id="kpi-damaged-card"
-                    onclick="window.location.href='/repair-jobs/webapp/index.html'"
-                    title="Click to view Workshop Repairs" data-roles="Admin,YardWorker,Technician,Manager,Auditor">
-                    <span class="kpi-label">Quarantined / Damaged</span>
-                    <div class="kpi-value" id="kpi-damaged">5 Assets</div>
-                    <span class="kpi-sub" id="kpi-damaged-sub">In Workshop &bull; Repair / Quarantine</span>
-                </div>
-            </section>
-
-            <!-- GROUP 0: DISPATCH & CUSTOMER MANAGEMENT (STEP 1) -->
-            <section class="tile-group" id="group-customers">
-                <div class="group-header">
-                    <div class="group-header-title">
-                        <span>🏢</span>
-                        <span>Rental Dispatch & Customer Master Data</span>
-                    </div>
-                </div>
-                <div class="tiles-grid">
-
-                    <!-- Tile: Customer Management -->
-                    <a href="/index.html?app=customer-management" class="fiori-tile" id="tile-customer-management"
-                        data-app="customer-management" data-roles="Admin,Dispatcher,Manager">
-                        <div class="tile-top">
-                            <span class="tile-icon">🏢</span>
-                            <span class="tile-badge">Master Data / Draft</span>
-                        </div>
-                        <h3 class="tile-title">Customer Management</h3>
-                        <p class="tile-desc">Register new corporate rental customers (e.g. XYZ Construction Pvt. Ltd.),
-                            create contact persons, view addresses, and review active rental contracts.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">Dispatcher &bull; Admin &bull; Mgr</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                    <!-- Tile 1: Fleet Overview & Asset Detail -->
-                    <a href="/index.html?app=fleet-overview" class="fiori-tile" id="tile-fleet-overview"
-                        data-app="fleet-overview" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager">
-                        <div class="tile-top">
-                            <span class="tile-icon">🚜</span>
-                            <span class="tile-badge">ALP / List Report</span>
-                        </div>
-                        <h3 class="tile-title">Fleet Overview & Asset Detail</h3>
-                        <p class="tile-desc">Track equipment availability, operational status, condition grades (A-D),
-                            and location telemetry across depots.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">Dispatcher &bull; Yard &bull; Tech</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                    <!-- Tile: Rental Contracts & Allocations -->
-                    <a href="/index.html?app=rentals" class="fiori-tile" id="tile-rentals" data-app="rentals"
-                        data-roles="Admin,Dispatcher,Manager,BillingClerk,Auditor">
-                        <div class="tile-top">
-                            <span class="tile-icon">📑</span>
-                            <span class="tile-badge">Contracts / Items</span>
-                        </div>
-                        <h3 class="tile-title">Rental Contracts & Allocations</h3>
-                        <p class="tile-desc">Manage rental agreements (e.g. RENT-10001), reserve equipment assets, track
-                            rental periods, and trigger check-out.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">Dispatcher &bull; Billing &bull; Mgr</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                    <!-- Tile: Depot & Yard Locations -->
-                    <a href="/index.html?app=locations" class="fiori-tile" id="tile-locations" data-app="locations"
-                        data-roles="Admin,Dispatcher,YardWorker,Technician,Manager,Auditor">
-                        <div class="tile-top">
-                            <span class="tile-icon">📍</span>
-                            <span class="tile-badge">Depot / Yard</span>
-                        </div>
-                        <h3 class="tile-title">Depot & Yard Locations</h3>
-                        <p class="tile-desc">Maintain equipment depots (e.g. Ahmedabad Main Yard - PLANT-AHMD),
-                            workshops, job sites, and GPS coordinates.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">Yard &bull; Dispatch &bull; Tech</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                </div>
-            </section>
-
-            <!-- GROUP 1: INSPECTIONS & EVIDENCE -->
-            <section class="tile-group" id="group-inspections">
-                <div class="group-header">
-                    <div class="group-header-title">
-                        <span>🔍</span>
-                        <span>Inspections & Condition Logging</span>
-                    </div>
-                </div>
-                <div class="tiles-grid">
-
-                    <!-- Tile: Condition Logs & Inspections -->
-                    <a href="/index.html?app=inspections" class="fiori-tile" id="tile-inspections"
-                        data-app="inspections" data-roles="Admin,Dispatcher,YardWorker,Manager,Auditor">
-                        <div class="tile-top">
-                            <span class="tile-icon">📋</span>
-                            <span class="tile-badge">Departure / Return</span>
-                        </div>
-                        <h3 class="tile-title">Condition Logs & Inspections</h3>
-                        <p class="tile-desc">Capture check-out and return condition logs, record meter readings, assign
-                            condition grades (A-D), and lock audit reports.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">YardWorker &bull; Dispatch &bull; Mgr</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                </div>
-            </section>
-
-            <!-- GROUP 2: BILLING & FINANCE -->
-            <section class="tile-group" id="group-billing">
-                <div class="group-header">
-                    <div class="group-header-title">
-                        <span>💳</span>
-                        <span>Financial & Damage Repair Billing</span>
-                    </div>
-                </div>
-                <div class="tiles-grid">
-
-                    <!-- Tile 3: Damage Charge Approval -->
-                    <a href="/index.html?app=damage-charge-approval" class="fiori-tile" id="tile-damage-charge"
-                        data-app="damage-charge-approval"
-                        data-roles="Admin,BillingClerk,Manager,Auditor,YardWorker,Technician">
-                        <div class="tile-top">
-                            <span class="tile-icon">💳</span>
-                            <span class="tile-badge">Worklist & Actions</span>
-                        </div>
-                        <h3 class="tile-title">Damage Charge Approval</h3>
-                        <p class="tile-desc">Review automated repair bills with damage particulars, inspect photo
-                            evidence, and approve or adjust customer repair charges.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">BillingClerk &bull; Mgr &bull; Audit</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                </div>
-            </section>
-
-            <!-- GROUP 3: WORKSHOP & MAINTENANCE -->
-            <section class="tile-group" id="group-workshop">
-                <div class="group-header">
-                    <div class="group-header-title">
-                        <span>🔧</span>
-                        <span>Workshop & Maintenance Engineering</span>
-                    </div>
-                </div>
-                <div class="tiles-grid">
-
-                    <!-- Tile 5: Workshop Repair Jobs -->
-                    <a href="/index.html?app=repair-jobs" class="fiori-tile" id="tile-repair-jobs"
-                        data-app="repair-jobs" data-roles="Admin,Technician,Manager">
-                        <div class="tile-top">
-                            <span class="tile-icon">🔧</span>
-                            <span class="tile-badge">Technician Worklist</span>
-                        </div>
-                        <h3 class="tile-title">Workshop Repair Jobs</h3>
-                        <p class="tile-desc">Dispatch damage repair jobs, capture actual technician hours & parts cost,
-                            and attach before/after photos.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">Technician &bull; Mgr</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                    <!-- Tile 6: Maintenance Planner -->
-                    <a href="/index.html?app=maintenance-planner" class="fiori-tile" id="tile-maintenance-planner"
-                        data-app="maintenance-planner" data-roles="Admin,Technician,Manager">
-                        <div class="tile-top">
-                            <span class="tile-icon">📅</span>
-                            <span class="tile-badge">Calendar & List</span>
-                        </div>
-                        <h3 class="tile-title">Maintenance Planner</h3>
-                        <p class="tile-desc">Track scheduled 250h/500h preventive services, calibration routines, and
-                            service provider costs.</p>
-                        <div class="tile-footer">
-                            <span class="tile-role-pill">Technician &bull; Mgr</span>
-                            <span>Open Fiori App &rarr;</span>
-                        </div>
-                    </a>
-
-                </div>
-            </section>
-
-
-
-        </main>
-
-        <footer class="fiori-footer">
-            <span>SAP BTP Cloud Application Programming (CAP) Model &bull; SAP HANA Cloud &bull; SAP Fiori
-                Elements</span>
-            <span>Plant: Ahmedabad Depot (PLANT-AHMD) &bull; Enterprise Suite v1.0</span>
-        </footer>
-
-    </div>
-
-
-    <!-- 4. CORE JAVASCRIPT -->
-    <script>
-        function findRoleFromSAP(scopes = []) {
-
-            if (scopes.some(s => s.includes('Admin')))
-                return 'Admin';
-
-            if (scopes.some(s => s.includes('Dispatcher')))
-                return 'Dispatcher';
-
-            if (scopes.some(s => s.includes('Manager')))
-                return 'Manager';
-
-            if (scopes.some(s => s.includes('Technician')))
-                return 'Technician';
-
-            if (scopes.some(s => s.includes('Billing')))
-                return 'BillingClerk';
-
-            if (scopes.some(s => s.includes('Auditor')))
-                return 'Auditor';
-
-            if (scopes.some(s => s.includes('Yard')))
-                return 'YardWorker';
-
-            return 'User';
-        }
-        document.addEventListener('DOMContentLoaded', async function () {
-
-            if (window.__FIORI_APP_CONFIG) {
-                return;
-            }
-
-            try {
-
-                const sapUser = await loadSAPUser();
-
-                console.log('SAP User', sapUser);
-
-                renderLaunchpadForSession({
-                    username: sapUser.user,
-                    role: findRoleFromSAP(sapUser.scopes || []),
-                    name: sapUser.user,
-                    plant: 'PLANT-AHMD'
-                });
-
-                loadLiveKPIData();
-
-            } catch (e) {
-
-                console.error(e);
-
-            }
-        });
-
-        function renderLaunchpadForSession(session) {
-            document.getElementById('launchpad-view').style.display = 'flex';
-            // Header info
-            document.getElementById('shell-user-avatar').textContent = session.avatar || 'AD';
-            document.getElementById('shell-user-avatar').style.backgroundColor = roleCfg.color || '#0070f2';
-            document.getElementById('shell-user-name').textContent = session.name;
-            document.getElementById('shell-user-role').textContent = session.role;
-
-            // Banner info
-            document.getElementById('banner-user-name').textContent = session.name;
-            document.getElementById('banner-user-role').textContent = roleCfg.title + ' (' + session.role + ')';
-            document.getElementById('banner-user-plant').textContent = session.plant;
-
-            // Filter tiles
-            let visibleAppCount = 0;
-            const tiles = document.querySelectorAll('.fiori-tile');
-            tiles.forEach(tile => {
-                const allowedRoles = (tile.getAttribute('data-roles') || '').split(',').map(s => s.trim());
-                if (session.role === 'Admin' || allowedRoles.includes(session.role)) {
-                    tile.style.display = 'flex';
-                    visibleAppCount++;
-                } else {
-                    tile.style.display = 'none';
-                }
-            });
-
-            // Filter groups
-            const groups = document.querySelectorAll('.tile-group');
-            groups.forEach(group => {
-                const visibleInGroup = group.querySelectorAll('.fiori-tile[style*="display: flex"]').length;
-                if (visibleInGroup === 0) {
-                    group.style.display = 'none';
-                } else {
-                    group.style.display = 'block';
-                }
-            });
-
-            // Filter KPIs
-            const kpiCards = document.querySelectorAll('.kpi-card');
-            kpiCards.forEach(card => {
-                const allowedRoles = (card.getAttribute('data-roles') || '').split(',').map(s => s.trim());
-                if (session.role === 'Admin' || allowedRoles.includes(session.role)) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-
-            document.getElementById('banner-app-count').textContent = visibleAppCount + ' of ' + tiles.length + ' Apps Authorized';
-        }
-
-        async function loadLiveKPIData() {
-            try {
-                const eqRes = await fetch('/rental/Equipment');
-                if (eqRes.ok) {
-                    const eqData = await eqRes.json();
-                    if (eqData && eqData.value) {
-                        const available = eqData.value.filter(e => e.currentStatus === 'Available').length;
-                        const rented = eqData.value.filter(e => e.currentStatus === 'RentedOut').length;
-                        const damaged = eqData.value.filter(e => ['Damaged', 'Quarantined', 'InRepair', 'UnderMaintenance', 'ReturnedPendingInspection'].includes(e.currentStatus)).length;
-
-                        document.getElementById('kpi-available').textContent = available + (available === 1 ? ' Asset' : ' Assets');
-                        document.getElementById('kpi-rented').textContent = rented + (rented === 1 ? ' Asset' : ' Assets');
-                        document.getElementById('kpi-damaged').textContent = damaged + (damaged === 1 ? ' Asset' : ' Assets');
-
-                        const availSub = document.getElementById('kpi-available-sub');
-                        if (availSub) availSub.textContent = available > 0 ? `${available} Ready for Dispatch • Yard A` : '0 Ready for Dispatch • Depot';
-
-                        const rentSub = document.getElementById('kpi-rented-sub');
-                        if (rentSub) rentSub.textContent = rented > 0 ? `${rented} Active On-Site • XYZ Construction` : '0 Active On-Site';
-
-                        const damSub = document.getElementById('kpi-damaged-sub');
-                        if (damSub) damSub.textContent = damaged > 0 ? `${damaged} in Workshop / Quarantine` : 'All Fleet Operational';
+            // who is logged in (XSUAA login via approuter) + KPI numbers for the tiles
+            var me = get("/api/whoAmI()", { user: "", name: "User", email: "", roles: [] });
+            var kpi = get("/api/kpis()", {});
+            var roles = me.roles || [];
+            var n = function (value) { return value === null || value === undefined ? "" : String(value); };
+            var hasRole = function (allowed) {
+                return allowed.some(function (role) { return roles.indexOf(role) >= 0; });
+            };
+
+            var applications = {};
+            var tiles = [];
+
+            // one app (navigation target) + its launchpad tile (icon + KPI number), only for the
+            // roles that the app's OData service grants access to (srv/*-service.cds @requires)
+            var addApp = function (allowed, intent, component, namespace, title, subtitle, icon, number, info, state) {
+                if (!hasRole(allowed)) return;
+                applications[intent] = {
+                    title: title,
+                    description: subtitle,
+                    additionalInformation: "SAPUI5.Component=" + namespace,
+                    applicationType: "URL",
+                    url: "./" + component + "/webapp",
+                    navigationMode: "embedded"
+                };
+                tiles.push({
+                    id: "rets_tile_" + component,
+                    title: title,
+                    size: "1x1",
+                    tileType: "sap.ushell.ui.tile.DynamicTile",
+                    properties: {
+                        chipId: "rets_chip_" + component,
+                        title: title,
+                        subtitle: subtitle,
+                        info: info,
+                        icon: icon,
+                        numberValue: n(number),
+                        numberState: state || "Neutral",
+                        targetURL: "#" + intent
                     }
-                }
+                });
+            };
 
-                const billRes = await fetch('/billing/RepairBills');
-                if (billRes.ok) {
-                    const billData = await billRes.json();
-                    if (billData && billData.value) {
-                        const pendingBills = billData.value.filter(b => b.billingStatus === 'PendingApproval' || b.billingStatus === 'Draft');
-                        const totalPending = pendingBills.reduce((acc, b) => acc + Number(b.totalAmount || 0), 0);
+            // dispatch & customer master data
+            addApp(["Admin", "Dispatcher", "Manager"], "Customer-manage", "customer-management", "retcl.customermanagement",
+                "Customer Management", "Rental customers & contacts",
+                "sap-icon://customer", kpi.customers, "Customers");
+            addApp(["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"], "Equipment-overview", "fleet-overview", "retcl.fleetoverview",
+                "Fleet Overview", "Status, grade & depot of every asset",
+                "sap-icon://shipping-status", kpi.availableAssets, "Available assets", "Good");
+            addApp(["Admin", "Dispatcher", "Manager", "Auditor"], "Rental-manage", "rentals", "retcl.rentals",
+                "Rental Contracts", "Contracts, allocations, check-in",
+                "sap-icon://sales-order", kpi.activeRentals, "Active contracts");
+            addApp(["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"], "Location-manage", "locations", "retcl.locations",
+                "Depots & Yards", "Locations and GPS coordinates",
+                "sap-icon://map-2", kpi.locations, "Locations");
 
-                        document.getElementById('kpi-pending').textContent = '₹' + Math.round(totalPending).toLocaleString('en-IN');
-                        const pendingSub = document.getElementById('kpi-pending-sub');
-                        if (pendingSub) {
-                            if (pendingBills.length > 0) {
-                                const topBill = pendingBills.find(b => b.invoiceNo) || pendingBills[0];
-                                pendingSub.textContent = `Invoice #${topBill.invoiceNo || 'Draft'} • Damage Bill`;
-                            } else {
-                                pendingSub.textContent = 'All Bills Cleared';
+            // inspections & billing
+            addApp(["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"], "ConditionLog-manage", "inspections", "retcl.inspections",
+                "Inspections", "Check-out / check-in condition logs",
+                "sap-icon://inspection", kpi.damagedAssets, "Damaged / pending inspection",
+                kpi.damagedAssets > 0 ? "Critical" : "Good");
+            addApp(["Admin", "BillingClerk", "Manager", "Auditor", "YardWorker", "Technician"], "RepairBill-approve", "damage-charge-approval", "retcl.damagechargeapproval",
+                "Damage Charge Approval", "Review, approve and post repair bills",
+                "sap-icon://receipt", kpi.pendingBills, "Bills waiting for approval",
+                kpi.pendingBills > 0 ? "Critical" : "Good");
+
+            // workshop & maintenance
+            addApp(["Admin", "Technician", "Manager"], "RepairJob-manage", "repair-jobs", "retcl.repairjobs",
+                "Workshop Repair Jobs", "Technician work orders",
+                "sap-icon://wrench", kpi.openRepairJobs, "Open repair jobs",
+                kpi.openRepairJobs > 0 ? "Critical" : "Good");
+            addApp(["Admin", "Technician", "Manager"], "Maintenance-plan", "maintenance-planner", "retcl.maintenanceplanner",
+                "Maintenance Planner", "Preventive service & calibration",
+                "sap-icon://appointment-2", kpi.plannedMaintenance, "Planned services");
+
+            // used after start-up (see below)
+            window.retsTiles = tiles;
+
+            var names = String(me.name || me.user || "User").split(" ");
+
+            window["sap-ushell-config"] = {
+                defaultRenderer: "fiori2",
+                services: {
+                    // real user in the shell header instead of "Default User"
+                    Container: {
+                        adapter: {
+                            config: {
+                                id: me.user || "USER",
+                                firstName: names[0],
+                                lastName: names.slice(1).join(" "),
+                                fullName: me.name || me.user,
+                                email: me.email
+                            }
+                        }
+                    },
+                    EndUserFeedback: { config: { enabled: false } }
+                },
+                renderers: {
+                    fiori2: {
+                        componentData: {
+                            config: {
+                                enableNotificationsUI: false,
+                                enableNotifications: false,
+                                enableSearch: false,
+                                enablePersonalization: false,
+                                enableSetTheme: true,
+                                enableSetLanguage: true
                             }
                         }
                     }
-                }
-            } catch (err) {
-                console.log('KPI load info:', err.message);
-            }
-        }
+                },
+                applications: applications
+            };
+        }());
     </script>
 
-</body>
+    <script id="sap-ushell-bootstrap" src="https://sapui5.hana.ondemand.com/1.153.0/test-resources/sap/ushell/bootstrap/sandbox.js"></script>
 
+    <script id="sap-ui-bootstrap"
+        src="https://sapui5.hana.ondemand.com/1.153.0/resources/sap-ui-core.js"
+        data-sap-ui-libs="sap.ui.core, sap.ushell, sap.fe.templates"
+        data-sap-ui-compat-version="edge"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-async="true"
+        data-sap-ui-frame-options="allow"
+        data-sap-ui-preload="async"></script>
+
+    <script>
+        sap.ui.getCore().attachInit(function () {
+
+            // The sandbox puts one tile per application into its "generated group" and adds
+            // demo groups ("Sample Applications"). Keep only the generated group and give it
+            // our tiles with icon + KPI number.
+            var services = window["sap-ushell-config"].services || {};
+            ["FlpLaunchPage", "LaunchPage"].forEach(function (name) {
+                var config = services[name] && services[name].adapter && services[name].adapter.config;
+                if (config && config.groups) {
+                    config.groups = config.groups.filter(function (group) {
+                        return group.id === "sap_ushell_generated_group_id";
+                    });
+                    config.groups.forEach(function (group) {
+                        group.title = "Rental Equipment Tracking";
+                        group.isGroupLocked = true;
+                        group.tiles = window.retsTiles;
+                    });
+                }
+            });
+
+            // "Sign Out" in the user menu logs out of XSUAA via the approuter
+            sap.ushell.Container.registerLogout(function () {
+                window.location.href = "/do/logout";
+                return new Promise(function () {});   // keep waiting: the browser is leaving the page
+            });
+
+            sap.ushell.Container.createRenderer("fiori2", true).then(function (renderer) {
+                renderer.placeAt("content");
+            });
+        });
+    </script>
+</head>
+<body class="sapUiBody sapUiSizeCompact" id="content"></body>
 </html>
