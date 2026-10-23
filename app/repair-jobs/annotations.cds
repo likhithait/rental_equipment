@@ -12,6 +12,8 @@ annotate MaintenanceService.RepairJobs with @(
         Description: { Value: status }
     },
     UI.SelectionFields: [
+
+        
         status,
         technician,
         equipment_ID

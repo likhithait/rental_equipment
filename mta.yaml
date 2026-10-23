@@ -12,6 +12,10 @@ build-parameters:
       commands:
         - npm ci
         - npx cds build --production
+        - mkdir -p gen/srv/public
+        - cp app/index.html gen/srv/public/
+        - cp app/fiori-auth.js gen/srv/public/
+        - cp app/Component.js gen/srv/public/
 
 modules:
   - name: sprint-srv
@@ -37,6 +41,26 @@ modules:
       buildpack: nodejs_buildpack
     requires:
       - name: RETS
+  - name: sprint
+    type: approuter.nodejs
+    path: .deploy/app-router
+    parameters:
+      keep-existing-routes: true
+      disk-quota: 256M
+      memory: 256M
+    requires:
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api # must be used in xs-app.json as well
+          url: ~{srv-url}
+          forwardAuthToken: true
+      - name: sprint-auth
+    provides:
+      - name: app-api
+        properties:
+          app-protocol: ${protocol}
+          app-uri: ${default-uri}
 
 resources:
   - name: sprint-auth
@@ -52,8 +76,46 @@ resources:
           credential-types:
             - "binding-secret"
             - "x509"
+          redirect-uris:
+            - https://*~{app-api/app-uri}/**
+        role-collections:
+          - name: 'Dispatcher (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.Dispatcher'
+          - name: 'YardWorker (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.YardWorker'
+          - name: 'Manager (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.Manager'
+          - name: 'Admin (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.Admin'
+          - name: 'Auditor (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.Auditor'
+          - name: 'Technician (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.Technician'
+          - name: 'BillingClerk (sprint ${org}-${space})'
+            description: 'generated'
+            role-template-references:
+              - '$XSAPPNAME.BillingClerk'
+    requires:
+      - name: app-api
 
   - name: RETS
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+  - name: sprint-db
     type: com.sap.xs.hdi-container
     parameters:
       service: hana

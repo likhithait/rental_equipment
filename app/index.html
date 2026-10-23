@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=72:wght@300;400;600;700&display=swap">
     <script src="/fiori-auth.js"></script>
     <script>
-        (function() {
+        (function () {
             const urlParams = new URLSearchParams(window.location.search);
             const currentAppId = urlParams.get('app');
             const APP_REGISTRY = {
@@ -87,10 +88,11 @@
             flex-direction: column !important;
             background-color: var(--sapBackgroundColor);
         }
-        body.fiori-subapp-mode #login-view,
+
         body.fiori-subapp-mode #launchpad-view {
             display: none !important;
         }
+
         body.fiori-subapp-mode [data-sap-ui-component],
         body.fiori-subapp-mode .sapUiComponentContainer,
         body.fiori-subapp-mode .sapUiUIArea {
@@ -99,217 +101,11 @@
             flex: 1 1 auto !important;
             position: relative !important;
         }
+
         body.fiori-subapp-mode .sapUxAPObjectPageFooter,
         body.fiori-subapp-mode .sapMPageFooter,
         body.fiori-subapp-mode .sapFDynamicPageFooter {
             z-index: 100 !important;
-        }
-
-        /* 1. SAP FIORI LOGIN SCREEN */
-        #login-view {
-            display: flex;
-            min-height: 100vh;
-            width: 100%;
-            background: radial-gradient(circle at 50% 30%, #1e3a5f 0%, #0b1726 100%);
-            align-items: center;
-            justify-content: center;
-            padding: 2rem 1.5rem;
-            position: relative;
-            overflow-y: auto;
-        }
-
-        .login-card {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-            max-width: 550px;
-            width: 100%;
-            padding: 2.5rem 2.25rem;
-            position: relative;
-            border-top: 5px solid var(--sapPrimary);
-            animation: fadeIn 0.35s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 1.75rem;
-        }
-
-        .login-logo {
-            height: 38px;
-            margin-bottom: 0.75rem;
-        }
-
-        .login-title {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #11263c;
-            line-height: 1.3;
-            margin-bottom: 0.35rem;
-        }
-
-        .login-subtitle {
-            font-size: 0.88rem;
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .login-tag {
-            display: inline-block;
-            background: #eef4fc;
-            color: var(--sapPrimary);
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            margin-top: 0.65rem;
-            letter-spacing: 0.4px;
-        }
-
-        .form-group {
-            margin-bottom: 1.15rem;
-            text-align: left;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #334155;
-            margin-bottom: 0.35rem;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            font-size: 0.95rem;
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
-            outline: none;
-            transition: all 0.2s;
-            background: #f8fafc;
-            color: #0f172a;
-        }
-
-        .form-input:focus {
-            border-color: var(--sapPrimary);
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(0, 112, 242, 0.15);
-        }
-
-        .btn-primary {
-            width: 100%;
-            background: linear-gradient(135deg, #0070f2 0%, #0056b3 100%);
-            color: #ffffff;
-            border: none;
-            padding: 0.85rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 112, 242, 0.3);
-            transition: all 0.2s;
-            margin-top: 0.5rem;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 16px rgba(0, 112, 242, 0.4);
-        }
-
-        .login-error {
-            display: none;
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-            padding: 0.65rem 1rem;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin-bottom: 1.25rem;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .personas-section {
-            margin-top: 1.75rem;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 1.25rem;
-        }
-
-        .personas-title {
-            font-size: 0.78rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            color: #64748b;
-            margin-bottom: 0.75rem;
-            text-align: center;
-        }
-
-        .personas-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.55rem;
-        }
-
-        .persona-btn {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 0.55rem 0.65rem;
-            text-align: left;
-            cursor: pointer;
-            transition: all 0.15s ease-in-out;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .persona-btn:hover {
-            background: #eef4fc;
-            border-color: var(--sapPrimary);
-            transform: translateY(-2px);
-            box-shadow: 0 3px 8px rgba(0, 112, 242, 0.12);
-        }
-
-        .persona-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.78rem;
-            color: #ffffff;
-            flex-shrink: 0;
-        }
-
-        .persona-info {
-            overflow: hidden;
-        }
-
-        .persona-name {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #1e293b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .persona-role {
-            font-size: 0.7rem;
-            color: #64748b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         /* 2. SAP FIORI LAUNCHPAD MAIN */
@@ -327,7 +123,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -353,7 +149,7 @@
             font-size: 0.85rem;
             color: #9cb5cf;
             padding-left: 0.75rem;
-            border-left: 1px solid rgba(255,255,255,0.2);
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .shell-actions {
@@ -370,7 +166,7 @@
             display: flex;
             align-items: center;
             gap: 0.65rem;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .user-avatar-circle {
@@ -474,9 +270,17 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
 
-        .kpi-card.success { border-color: var(--sapSuccess); }
-        .kpi-card.warning { border-color: var(--sapWarning); }
-        .kpi-card.error { border-color: var(--sapError); }
+        .kpi-card.success {
+            border-color: var(--sapSuccess);
+        }
+
+        .kpi-card.warning {
+            border-color: var(--sapWarning);
+        }
+
+        .kpi-card.error {
+            border-color: var(--sapError);
+        }
 
         .kpi-label {
             font-size: 0.85rem;
@@ -539,7 +343,7 @@
             flex-direction: column;
             justify-content: space-between;
             min-height: 185px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
             transition: all 0.2s ease-in-out;
             position: relative;
             overflow: hidden;
@@ -683,6 +487,7 @@
         }
     </style>
 </head>
+
 <body>
     <script>
         if (window.__FIORI_APP_CONFIG) {
@@ -699,110 +504,16 @@
         }
     </script>
 
-    <!-- 1. LOGIN SCREEN -->
-    <div id="login-view">
-        <div class="login-card">
-            
-            <div class="login-header">
-                <!-- SAP Official SVG Logo -->
-                <svg class="login-logo" viewBox="0 0 70 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 0H70V34H0V0Z" fill="#0070F2"/>
-                    <path d="M12.8 23.5H9.2L16.2 8.5H19.8L26.8 23.5H23.2L21.7 20.3H14.3L12.8 23.5ZM15.5 17.6H20.5L18 12.3L15.5 17.6ZM34.2 23.7C31.5 23.7 29.5 22.8 28.1 21L29.9 18.9C31 20.4 32.5 21.1 34.4 21.1C35.9 21.1 37.1 20.6 37.1 19.5C37.1 18.6 36.3 18.1 34.6 17.6L32.7 17.1C29.8 16.3 28.5 14.8 28.5 12.6C28.5 10.1 30.6 8.3 34.1 8.3C36.4 8.3 38.2 9 39.5 10.3L37.8 12.5C36.7 11.4 35.5 10.9 34 10.9C32.8 10.9 31.8 11.4 31.8 12.4C31.8 13.2 32.5 13.7 34.2 14.2L36 14.7C39.2 15.6 40.5 17.1 40.5 19.3C40.5 22 38.3 23.7 34.2 23.7ZM44.2 23.5V8.5H50.5C54.1 8.5 56.6 10.5 56.6 14C56.6 17.5 54.1 19.5 50.5 19.5H47.4V23.5H44.2ZM47.4 16.9H50.3C52.1 16.9 53.3 15.9 53.3 14C53.3 12.1 52.1 11.1 50.3 11.1H47.4V16.9Z" fill="white"/>
-                </svg>
-                <h1 class="login-title">Rental Equipment Tracking & Condition Logging</h1>
-                <p class="login-subtitle">SAP S/4HANA Cloud & BTP CAP Enterprise Suite</p>
-                <div class="login-tag">🔐 Role-Based Access Control (RBAC)</div>
-            </div>
-
-            <div id="login-error-box" class="login-error">
-                <span>⚠️</span>
-                <span id="login-error-msg">Invalid user credentials or unrecognized role.</span>
-            </div>
-
-            <form id="fiori-login-form" onsubmit="handleFormLogin(event)">
-                <div class="form-group">
-                    <label class="form-label" for="login-username">SAP Universal ID / Username</label>
-                    <input type="text" id="login-username" class="form-input" placeholder="e.g. admin, dispatcher, inspector, finance, technician" value="dispatcher" required autocomplete="username">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="login-password">Password</label>
-                    <input type="password" id="login-password" class="form-input" placeholder="Enter password (e.g. disp123)" value="disp123" required autocomplete="current-password">
-                </div>
-
-                <button type="submit" id="btn-login-submit" class="btn-primary">
-                    Sign In to Fiori Launchpad &rarr;
-                </button>
-            </form>
-
-            <!-- Quick-Access Personas Grid -->
-            <div class="personas-section">
-                <div class="personas-title">&bull; Quick Sign-In as Business Persona &bull;</div>
-                <div class="personas-grid">
-                    
-                    <button type="button" class="persona-btn" onclick="quickLogin('dispatcher')">
-                        <div class="persona-avatar" style="background:#00838f;">KR</div>
-                        <div class="persona-info">
-                            <div class="persona-name">Kavita Reddy</div>
-                            <div class="persona-role">📋 Dispatcher (Customer & Fleet)</div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="persona-btn" onclick="quickLogin('admin')">
-                        <div class="persona-avatar" style="background:#0070f2;">VM</div>
-                        <div class="persona-info">
-                            <div class="persona-name">Vikram Mehta</div>
-                            <div class="persona-role">👔 Administrator (All Apps)</div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="persona-btn" onclick="quickLogin('inspector')">
-                        <div class="persona-avatar" style="background:#107e3e;">RP</div>
-                        <div class="persona-info">
-                            <div class="persona-name">Ramesh Patel</div>
-                            <div class="persona-role">🚜 Yard Inspector (Check-In)</div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="persona-btn" onclick="quickLogin('finance')">
-                        <div class="persona-avatar" style="background:#8e44ad;">AS</div>
-                        <div class="persona-info">
-                            <div class="persona-name">Ananya Sharma</div>
-                            <div class="persona-role">💳 Billing Specialist (Charges)</div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="persona-btn" onclick="quickLogin('technician')">
-                        <div class="persona-avatar" style="background:#e67e22;">MD</div>
-                        <div class="persona-info">
-                            <div class="persona-name">Mike D'souza</div>
-                            <div class="persona-role">🔧 Lead Technician (Repairs)</div>
-                        </div>
-                    </button>
-
-                    <button type="button" class="persona-btn" onclick="quickLogin('manager')">
-                        <div class="persona-avatar" style="background:#2980b9;">SV</div>
-                        <div class="persona-info">
-                            <div class="persona-name">Sanjay Verma</div>
-                            <div class="persona-role">💼 Operations Director</div>
-                        </div>
-                    </button>
-
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-
     <!-- 2. LAUNCHPAD VIEW -->
     <div id="launchpad-view">
 
         <header class="fiori-shell">
             <div class="shell-brand">
                 <svg class="sap-logo" viewBox="0 0 70 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 0H70V34H0V0Z" fill="#0070F2"/>
-                    <path d="M12.8 23.5H9.2L16.2 8.5H19.8L26.8 23.5H23.2L21.7 20.3H14.3L12.8 23.5ZM15.5 17.6H20.5L18 12.3L15.5 17.6ZM34.2 23.7C31.5 23.7 29.5 22.8 28.1 21L29.9 18.9C31 20.4 32.5 21.1 34.4 21.1C35.9 21.1 37.1 20.6 37.1 19.5C37.1 18.6 36.3 18.1 34.6 17.6L32.7 17.1C29.8 16.3 28.5 14.8 28.5 12.6C28.5 10.1 30.6 8.3 34.1 8.3C36.4 8.3 38.2 9 39.5 10.3L37.8 12.5C36.7 11.4 35.5 10.9 34 10.9C32.8 10.9 31.8 11.4 31.8 12.4C31.8 13.2 32.5 13.7 34.2 14.2L36 14.7C39.2 15.6 40.5 17.1 40.5 19.3C40.5 22 38.3 23.7 34.2 23.7ZM44.2 23.5V8.5H50.5C54.1 8.5 56.6 10.5 56.6 14C56.6 17.5 54.1 19.5 50.5 19.5H47.4V23.5H44.2ZM47.4 16.9H50.3C52.1 16.9 53.3 15.9 53.3 14C53.3 12.1 52.1 11.1 50.3 11.1H47.4V16.9Z" fill="white"/>
+                    <path d="M0 0H70V34H0V0Z" fill="#0070F2" />
+                    <path
+                        d="M12.8 23.5H9.2L16.2 8.5H19.8L26.8 23.5H23.2L21.7 20.3H14.3L12.8 23.5ZM15.5 17.6H20.5L18 12.3L15.5 17.6ZM34.2 23.7C31.5 23.7 29.5 22.8 28.1 21L29.9 18.9C31 20.4 32.5 21.1 34.4 21.1C35.9 21.1 37.1 20.6 37.1 19.5C37.1 18.6 36.3 18.1 34.6 17.6L32.7 17.1C29.8 16.3 28.5 14.8 28.5 12.6C28.5 10.1 30.6 8.3 34.1 8.3C36.4 8.3 38.2 9 39.5 10.3L37.8 12.5C36.7 11.4 35.5 10.9 34 10.9C32.8 10.9 31.8 11.4 31.8 12.4C31.8 13.2 32.5 13.7 34.2 14.2L36 14.7C39.2 15.6 40.5 17.1 40.5 19.3C40.5 22 38.3 23.7 34.2 23.7ZM44.2 23.5V8.5H50.5C54.1 8.5 56.6 10.5 56.6 14C56.6 17.5 54.1 19.5 50.5 19.5H47.4V23.5H44.2ZM47.4 16.9H50.3C52.1 16.9 53.3 15.9 53.3 14C53.3 12.1 52.1 11.1 50.3 11.1H47.4V16.9Z"
+                        fill="white" />
                 </svg>
                 <span class="shell-title">Rental Equipment Tracking & Condition Logging</span>
                 <span class="shell-subtitle">SAP S/4HANA Cloud & BTP CAP</span>
@@ -815,11 +526,8 @@
                     <span class="user-role-tag" id="shell-user-role">ADMIN</span>
                 </div>
 
-                <button class="btn-shell" onclick="openSwitchModal()" title="Switch Persona / Role">
-                    <span>🔄 Switch Role</span>
-                </button>
-
-                <button class="btn-shell" onclick="handleLogout()" title="Log out" style="background:rgba(239, 68, 68, 0.2); border-color:rgba(239, 68, 68, 0.4);">
+                <button class="btn-shell" onclick="handleLogout()" title="Log out"
+                    style="background:rgba(239, 68, 68, 0.2); border-color:rgba(239, 68, 68, 0.4);">
                     <span>🚪 Sign Out</span>
                 </button>
             </div>
@@ -835,7 +543,8 @@
                 </span>
             </div>
             <div class="scope-right">
-                <span id="banner-app-count" style="font-weight:700; background:#ffffff; border:1px solid #cbd5e1; padding:0.25rem 0.65rem; border-radius:12px; font-size:0.8rem;">
+                <span id="banner-app-count"
+                    style="font-weight:700; background:#ffffff; border:1px solid #cbd5e1; padding:0.25rem 0.65rem; border-radius:12px; font-size:0.8rem;">
                     10 of 10 Apps Authorized
                 </span>
             </div>
@@ -845,22 +554,29 @@
 
             <!-- Executive KPI Banner -->
             <section class="kpi-banner">
-                <div class="kpi-card success" id="kpi-available-card" onclick="window.location.href='/fleet-overview/webapp/index.html'" title="Click to view Fleet Overview" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager">
+                <div class="kpi-card success" id="kpi-available-card"
+                    onclick="window.location.href='/fleet-overview/webapp/index.html'"
+                    title="Click to view Fleet Overview" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager">
                     <span class="kpi-label">Available Fleet</span>
                     <div class="kpi-value" id="kpi-available">2 Assets</div>
                     <span class="kpi-sub" id="kpi-available-sub">Ready for Dispatch &bull; Yard A</span>
                 </div>
-                <div class="kpi-card" id="kpi-rented-card" onclick="window.location.href='/rentals/webapp/index.html'" title="Click to view Rental Contracts" data-roles="Admin,Dispatcher,BillingClerk,Manager">
+                <div class="kpi-card" id="kpi-rented-card" onclick="window.location.href='/rentals/webapp/index.html'"
+                    title="Click to view Rental Contracts" data-roles="Admin,Dispatcher,BillingClerk,Manager">
                     <span class="kpi-label">Rented Out Fleet</span>
                     <div class="kpi-value" id="kpi-rented">4 Assets</div>
                     <span class="kpi-sub" id="kpi-rented-sub">Active On-Site &bull; XYZ Construction</span>
                 </div>
-                <div class="kpi-card warning" id="kpi-pending-card" onclick="window.location.href='/damage-charge-approval/webapp/index.html'" title="Click to view Damage Approvals" data-roles="Admin,BillingClerk,Manager,Auditor">
+                <div class="kpi-card warning" id="kpi-pending-card"
+                    onclick="window.location.href='/damage-charge-approval/webapp/index.html'"
+                    title="Click to view Damage Approvals" data-roles="Admin,BillingClerk,Manager,Auditor">
                     <span class="kpi-label">Pending Approval</span>
                     <div class="kpi-value" id="kpi-pending">&#8377;35,400</div>
                     <span class="kpi-sub" id="kpi-pending-sub">Invoice #9000123456 &bull; Damage Bill</span>
                 </div>
-                <div class="kpi-card error" id="kpi-damaged-card" onclick="window.location.href='/repair-jobs/webapp/index.html'" title="Click to view Workshop Repairs" data-roles="Admin,YardWorker,Technician,Manager,Auditor">
+                <div class="kpi-card error" id="kpi-damaged-card"
+                    onclick="window.location.href='/repair-jobs/webapp/index.html'"
+                    title="Click to view Workshop Repairs" data-roles="Admin,YardWorker,Technician,Manager,Auditor">
                     <span class="kpi-label">Quarantined / Damaged</span>
                     <div class="kpi-value" id="kpi-damaged">5 Assets</div>
                     <span class="kpi-sub" id="kpi-damaged-sub">In Workshop &bull; Repair / Quarantine</span>
@@ -878,13 +594,15 @@
                 <div class="tiles-grid">
 
                     <!-- Tile: Customer Management -->
-                    <a href="/index.html?app=customer-management" class="fiori-tile" id="tile-customer-management" data-app="customer-management" data-roles="Admin,Dispatcher,Manager">
+                    <a href="/index.html?app=customer-management" class="fiori-tile" id="tile-customer-management"
+                        data-app="customer-management" data-roles="Admin,Dispatcher,Manager">
                         <div class="tile-top">
                             <span class="tile-icon">🏢</span>
                             <span class="tile-badge">Master Data / Draft</span>
                         </div>
                         <h3 class="tile-title">Customer Management</h3>
-                        <p class="tile-desc">Register new corporate rental customers (e.g. XYZ Construction Pvt. Ltd.), create contact persons, view addresses, and review active rental contracts.</p>
+                        <p class="tile-desc">Register new corporate rental customers (e.g. XYZ Construction Pvt. Ltd.),
+                            create contact persons, view addresses, and review active rental contracts.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">Dispatcher &bull; Admin &bull; Mgr</span>
                             <span>Open Fiori App &rarr;</span>
@@ -892,13 +610,15 @@
                     </a>
 
                     <!-- Tile 1: Fleet Overview & Asset Detail -->
-                    <a href="/index.html?app=fleet-overview" class="fiori-tile" id="tile-fleet-overview" data-app="fleet-overview" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager">
+                    <a href="/index.html?app=fleet-overview" class="fiori-tile" id="tile-fleet-overview"
+                        data-app="fleet-overview" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager">
                         <div class="tile-top">
                             <span class="tile-icon">🚜</span>
                             <span class="tile-badge">ALP / List Report</span>
                         </div>
                         <h3 class="tile-title">Fleet Overview & Asset Detail</h3>
-                        <p class="tile-desc">Track equipment availability, operational status, condition grades (A-D), and location telemetry across depots.</p>
+                        <p class="tile-desc">Track equipment availability, operational status, condition grades (A-D),
+                            and location telemetry across depots.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">Dispatcher &bull; Yard &bull; Tech</span>
                             <span>Open Fiori App &rarr;</span>
@@ -906,13 +626,15 @@
                     </a>
 
                     <!-- Tile: Rental Contracts & Allocations -->
-                    <a href="/index.html?app=rentals" class="fiori-tile" id="tile-rentals" data-app="rentals" data-roles="Admin,Dispatcher,Manager,BillingClerk,Auditor">
+                    <a href="/index.html?app=rentals" class="fiori-tile" id="tile-rentals" data-app="rentals"
+                        data-roles="Admin,Dispatcher,Manager,BillingClerk,Auditor">
                         <div class="tile-top">
                             <span class="tile-icon">📑</span>
                             <span class="tile-badge">Contracts / Items</span>
                         </div>
                         <h3 class="tile-title">Rental Contracts & Allocations</h3>
-                        <p class="tile-desc">Manage rental agreements (e.g. RENT-10001), reserve equipment assets, track rental periods, and trigger check-out.</p>
+                        <p class="tile-desc">Manage rental agreements (e.g. RENT-10001), reserve equipment assets, track
+                            rental periods, and trigger check-out.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">Dispatcher &bull; Billing &bull; Mgr</span>
                             <span>Open Fiori App &rarr;</span>
@@ -920,13 +642,15 @@
                     </a>
 
                     <!-- Tile: Depot & Yard Locations -->
-                    <a href="/index.html?app=locations" class="fiori-tile" id="tile-locations" data-app="locations" data-roles="Admin,Dispatcher,YardWorker,Technician,Manager,Auditor">
+                    <a href="/index.html?app=locations" class="fiori-tile" id="tile-locations" data-app="locations"
+                        data-roles="Admin,Dispatcher,YardWorker,Technician,Manager,Auditor">
                         <div class="tile-top">
                             <span class="tile-icon">📍</span>
                             <span class="tile-badge">Depot / Yard</span>
                         </div>
                         <h3 class="tile-title">Depot & Yard Locations</h3>
-                        <p class="tile-desc">Maintain equipment depots (e.g. Ahmedabad Main Yard - PLANT-AHMD), workshops, job sites, and GPS coordinates.</p>
+                        <p class="tile-desc">Maintain equipment depots (e.g. Ahmedabad Main Yard - PLANT-AHMD),
+                            workshops, job sites, and GPS coordinates.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">Yard &bull; Dispatch &bull; Tech</span>
                             <span>Open Fiori App &rarr;</span>
@@ -947,13 +671,15 @@
                 <div class="tiles-grid">
 
                     <!-- Tile: Condition Logs & Inspections -->
-                    <a href="/index.html?app=inspections" class="fiori-tile" id="tile-inspections" data-app="inspections" data-roles="Admin,Dispatcher,YardWorker,Manager,Auditor">
+                    <a href="/index.html?app=inspections" class="fiori-tile" id="tile-inspections"
+                        data-app="inspections" data-roles="Admin,Dispatcher,YardWorker,Manager,Auditor">
                         <div class="tile-top">
                             <span class="tile-icon">📋</span>
                             <span class="tile-badge">Departure / Return</span>
                         </div>
                         <h3 class="tile-title">Condition Logs & Inspections</h3>
-                        <p class="tile-desc">Capture check-out and return condition logs, record meter readings, assign condition grades (A-D), and lock audit reports.</p>
+                        <p class="tile-desc">Capture check-out and return condition logs, record meter readings, assign
+                            condition grades (A-D), and lock audit reports.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">YardWorker &bull; Dispatch &bull; Mgr</span>
                             <span>Open Fiori App &rarr;</span>
@@ -974,13 +700,16 @@
                 <div class="tiles-grid">
 
                     <!-- Tile 3: Damage Charge Approval -->
-                    <a href="/index.html?app=damage-charge-approval" class="fiori-tile" id="tile-damage-charge" data-app="damage-charge-approval" data-roles="Admin,BillingClerk,Manager,Auditor,YardWorker,Technician">
+                    <a href="/index.html?app=damage-charge-approval" class="fiori-tile" id="tile-damage-charge"
+                        data-app="damage-charge-approval"
+                        data-roles="Admin,BillingClerk,Manager,Auditor,YardWorker,Technician">
                         <div class="tile-top">
                             <span class="tile-icon">💳</span>
                             <span class="tile-badge">Worklist & Actions</span>
                         </div>
                         <h3 class="tile-title">Damage Charge Approval</h3>
-                        <p class="tile-desc">Review automated repair bills with damage particulars, inspect photo evidence, and approve or adjust customer repair charges.</p>
+                        <p class="tile-desc">Review automated repair bills with damage particulars, inspect photo
+                            evidence, and approve or adjust customer repair charges.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">BillingClerk &bull; Mgr &bull; Audit</span>
                             <span>Open Fiori App &rarr;</span>
@@ -1001,13 +730,15 @@
                 <div class="tiles-grid">
 
                     <!-- Tile 5: Workshop Repair Jobs -->
-                    <a href="/index.html?app=repair-jobs" class="fiori-tile" id="tile-repair-jobs" data-app="repair-jobs" data-roles="Admin,Technician,Manager">
+                    <a href="/index.html?app=repair-jobs" class="fiori-tile" id="tile-repair-jobs"
+                        data-app="repair-jobs" data-roles="Admin,Technician,Manager">
                         <div class="tile-top">
                             <span class="tile-icon">🔧</span>
                             <span class="tile-badge">Technician Worklist</span>
                         </div>
                         <h3 class="tile-title">Workshop Repair Jobs</h3>
-                        <p class="tile-desc">Dispatch damage repair jobs, capture actual technician hours & parts cost, and attach before/after photos.</p>
+                        <p class="tile-desc">Dispatch damage repair jobs, capture actual technician hours & parts cost,
+                            and attach before/after photos.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">Technician &bull; Mgr</span>
                             <span>Open Fiori App &rarr;</span>
@@ -1015,13 +746,15 @@
                     </a>
 
                     <!-- Tile 6: Maintenance Planner -->
-                    <a href="/index.html?app=maintenance-planner" class="fiori-tile" id="tile-maintenance-planner" data-app="maintenance-planner" data-roles="Admin,Technician,Manager">
+                    <a href="/index.html?app=maintenance-planner" class="fiori-tile" id="tile-maintenance-planner"
+                        data-app="maintenance-planner" data-roles="Admin,Technician,Manager">
                         <div class="tile-top">
                             <span class="tile-icon">📅</span>
                             <span class="tile-badge">Calendar & List</span>
                         </div>
                         <h3 class="tile-title">Maintenance Planner</h3>
-                        <p class="tile-desc">Track scheduled 250h/500h preventive services, calibration routines, and service provider costs.</p>
+                        <p class="tile-desc">Track scheduled 250h/500h preventive services, calibration routines, and
+                            service provider costs.</p>
                         <div class="tile-footer">
                             <span class="tile-role-pill">Technician &bull; Mgr</span>
                             <span>Open Fiori App &rarr;</span>
@@ -1036,102 +769,71 @@
         </main>
 
         <footer class="fiori-footer">
-            <span>SAP BTP Cloud Application Programming (CAP) Model &bull; SAP HANA Cloud &bull; SAP Fiori Elements</span>
+            <span>SAP BTP Cloud Application Programming (CAP) Model &bull; SAP HANA Cloud &bull; SAP Fiori
+                Elements</span>
             <span>Plant: Ahmedabad Depot (PLANT-AHMD) &bull; Enterprise Suite v1.0</span>
         </footer>
 
     </div>
 
-    <!-- 3. MODAL FOR FAST SWITCHING PERSONAS -->
-    <div id="switch-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Switch Enterprise Role Persona</h3>
-                <button class="modal-close" onclick="closeSwitchModal()">&times;</button>
-            </div>
-            <p style="font-size:0.88rem; color:#64748b; margin-bottom:1.25rem;">
-                Select a business persona below to instantly switch roles and inspect the launchpad apps authorized for that profile:
-            </p>
-            <div class="personas-grid">
-                
-                <button type="button" class="persona-btn" onclick="quickLogin('dispatcher'); closeSwitchModal();">
-                    <div class="persona-avatar" style="background:#00838f;">KR</div>
-                    <div class="persona-info">
-                        <div class="persona-name">Kavita Reddy</div>
-                        <div class="persona-role">📋 Dispatcher (Customer & Fleet)</div>
-                    </div>
-                </button>
-
-                <button type="button" class="persona-btn" onclick="quickLogin('admin'); closeSwitchModal();">
-                    <div class="persona-avatar" style="background:#0070f2;">VM</div>
-                    <div class="persona-info">
-                        <div class="persona-name">Vikram Mehta</div>
-                        <div class="persona-role">👔 Administrator (All Apps)</div>
-                    </div>
-                </button>
-
-                <button type="button" class="persona-btn" onclick="quickLogin('inspector'); closeSwitchModal();">
-                    <div class="persona-avatar" style="background:#107e3e;">RP</div>
-                    <div class="persona-info">
-                        <div class="persona-name">Ramesh Patel</div>
-                        <div class="persona-role">🚜 Yard Inspector (Check-In)</div>
-                    </div>
-                </button>
-
-                <button type="button" class="persona-btn" onclick="quickLogin('finance'); closeSwitchModal();">
-                    <div class="persona-avatar" style="background:#8e44ad;">AS</div>
-                    <div class="persona-info">
-                        <div class="persona-name">Ananya Sharma</div>
-                        <div class="persona-role">💳 Billing Specialist (Charges)</div>
-                    </div>
-                </button>
-
-                <button type="button" class="persona-btn" onclick="quickLogin('technician'); closeSwitchModal();">
-                    <div class="persona-avatar" style="background:#e67e22;">MD</div>
-                    <div class="persona-info">
-                        <div class="persona-name">Mike D'souza</div>
-                        <div class="persona-role">🔧 Lead Technician (Repairs)</div>
-                    </div>
-                </button>
-
-                <button type="button" class="persona-btn" onclick="quickLogin('manager'); closeSwitchModal();">
-                    <div class="persona-avatar" style="background:#2980b9;">SV</div>
-                    <div class="persona-info">
-                        <div class="persona-name">Sanjay Verma</div>
-                        <div class="persona-role">💼 Operations Director</div>
-                    </div>
-                </button>
-
-            </div>
-        </div>
-    </div>
 
     <!-- 4. CORE JAVASCRIPT -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        function findRoleFromSAP(scopes = []) {
+
+            if (scopes.some(s => s.includes('Admin')))
+                return 'Admin';
+
+            if (scopes.some(s => s.includes('Dispatcher')))
+                return 'Dispatcher';
+
+            if (scopes.some(s => s.includes('Manager')))
+                return 'Manager';
+
+            if (scopes.some(s => s.includes('Technician')))
+                return 'Technician';
+
+            if (scopes.some(s => s.includes('Billing')))
+                return 'BillingClerk';
+
+            if (scopes.some(s => s.includes('Auditor')))
+                return 'Auditor';
+
+            if (scopes.some(s => s.includes('Yard')))
+                return 'YardWorker';
+
+            return 'User';
+        }
+        document.addEventListener('DOMContentLoaded', async function () {
+
             if (window.__FIORI_APP_CONFIG) {
-                return; // Sub-app runner handles its own UI lifecycle
+                return;
             }
-            const session = getFioriSession();
-            if (session) {
-                renderLaunchpadForSession(session);
-            } else {
-                showLoginView();
+
+            try {
+
+                const sapUser = await loadSAPUser();
+
+                console.log('SAP User', sapUser);
+
+                renderLaunchpadForSession({
+                    username: sapUser.user,
+                    role: findRoleFromSAP(sapUser.scopes || []),
+                    name: sapUser.user,
+                    plant: 'PLANT-AHMD'
+                });
+
+                loadLiveKPIData();
+
+            } catch (e) {
+
+                console.error(e);
+
             }
-            loadLiveKPIData();
         });
 
-        function showLoginView() {
-            document.getElementById('login-view').style.display = 'flex';
-            document.getElementById('launchpad-view').style.display = 'none';
-        }
-
         function renderLaunchpadForSession(session) {
-            document.getElementById('login-view').style.display = 'none';
             document.getElementById('launchpad-view').style.display = 'flex';
-
-            const roleCfg = window.FIORI_ROLES_CONFIG[session.role] || window.FIORI_ROLES_CONFIG['Admin'];
-
             // Header info
             document.getElementById('shell-user-avatar').textContent = session.avatar || 'AD';
             document.getElementById('shell-user-avatar').style.backgroundColor = roleCfg.color || '#0070f2';
@@ -1181,64 +883,6 @@
             document.getElementById('banner-app-count').textContent = visibleAppCount + ' of ' + tiles.length + ' Apps Authorized';
         }
 
-        function handleFormLogin(e) {
-            e.preventDefault();
-            const usernameInput = document.getElementById('login-username').value.trim().toLowerCase();
-            const passwordInput = document.getElementById('login-password').value.trim();
-
-            const userEntry = window.FIORI_USERS[usernameInput];
-            if (!userEntry) {
-                showLoginError('User "' + usernameInput + '" not found. Try: dispatcher, admin, inspector, finance, technician, manager.');
-                return;
-            }
-
-            if (userEntry.pass !== passwordInput && passwordInput !== 'password123' && passwordInput !== 'admin123') {
-                showLoginError('Incorrect password for ' + usernameInput + '. (Demo password: ' + userEntry.pass + ')');
-                return;
-            }
-
-            hideLoginError();
-            const session = setFioriSession(usernameInput);
-            renderLaunchpadForSession(session);
-        }
-
-        function quickLogin(username) {
-            hideLoginError();
-            const session = setFioriSession(username);
-            renderLaunchpadForSession(session);
-        }
-
-        function handleLogout() {
-            clearFioriSession();
-            showLoginView();
-        }
-
-        function showLoginError(msg) {
-            const errBox = document.getElementById('login-error-box');
-            const errMsg = document.getElementById('login-error-msg');
-            errMsg.textContent = msg;
-            errBox.style.display = 'flex';
-        }
-
-        function hideLoginError() {
-            document.getElementById('login-error-box').style.display = 'none';
-        }
-
-        function openSwitchModal() {
-            document.getElementById('switch-modal').style.display = 'flex';
-        }
-
-        function closeSwitchModal() {
-            document.getElementById('switch-modal').style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            const modal = document.getElementById('switch-modal');
-            if (event.target === modal) {
-                closeSwitchModal();
-            }
-        };
-
         async function loadLiveKPIData() {
             try {
                 const eqRes = await fetch('/rental/Equipment');
@@ -1248,7 +892,7 @@
                         const available = eqData.value.filter(e => e.currentStatus === 'Available').length;
                         const rented = eqData.value.filter(e => e.currentStatus === 'RentedOut').length;
                         const damaged = eqData.value.filter(e => ['Damaged', 'Quarantined', 'InRepair', 'UnderMaintenance', 'ReturnedPendingInspection'].includes(e.currentStatus)).length;
-                        
+
                         document.getElementById('kpi-available').textContent = available + (available === 1 ? ' Asset' : ' Assets');
                         document.getElementById('kpi-rented').textContent = rented + (rented === 1 ? ' Asset' : ' Assets');
                         document.getElementById('kpi-damaged').textContent = damaged + (damaged === 1 ? ' Asset' : ' Assets');
@@ -1270,7 +914,7 @@
                     if (billData && billData.value) {
                         const pendingBills = billData.value.filter(b => b.billingStatus === 'PendingApproval' || b.billingStatus === 'Draft');
                         const totalPending = pendingBills.reduce((acc, b) => acc + Number(b.totalAmount || 0), 0);
-                        
+
                         document.getElementById('kpi-pending').textContent = '₹' + Math.round(totalPending).toLocaleString('en-IN');
                         const pendingSub = document.getElementById('kpi-pending-sub');
                         if (pendingSub) {
@@ -1290,4 +934,5 @@
     </script>
 
 </body>
+
 </html>

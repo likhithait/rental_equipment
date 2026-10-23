@@ -35,20 +35,20 @@ type InspectionType : String(15) enum {
     CheckOut;
 };
 
-type InspectorName : String(100) enum {
-    @title: 'Ramesh Patel (Senior Yard Inspector)'
-    Ramesh_Patel = 'Ramesh Patel';
-    @title: 'Kavita Reddy (Rental Dispatcher)'
-    Kavita_Reddy = 'Kavita Reddy';
-    @title: 'Mike D''souza (Lead Workshop Technician)'
-    Mike_Dsouza = 'Mike D''souza';
-    @title: 'Vikram Mehta (System Administrator)'
-    Vikram_Mehta = 'Vikram Mehta';
-    @title: 'Sanjay Verma (Operations & Fleet Director)'
-    Sanjay_Verma = 'Sanjay Verma';
-    @title: 'Yard Worker (Yard Staff)'
-    Yard_Worker = 'Yard Worker';
-};
+// type InspectorName : String(100) enum {
+//     @title: 'Ramesh Patel (Senior Yard Inspector)'
+//     Ramesh_Patel = 'Ramesh Patel';
+//     @title: 'Kavita Reddy (Rental Dispatcher)'
+//     Kavita_Reddy = 'Kavita Reddy';
+//     @title: 'Mike D''souza (Lead Workshop Technician)'
+//     Mike_Dsouza = 'Mike D''souza';
+//     @title: 'Vikram Mehta (System Administrator)'
+//     Vikram_Mehta = 'Vikram Mehta';
+//     @title: 'Sanjay Verma (Operations & Fleet Director)'
+//     Sanjay_Verma = 'Sanjay Verma';
+//     @title: 'Yard Worker (Yard Staff)'
+//     Yard_Worker = 'Yard Worker';
+// };
 
 type EquipmentArea : String(50) enum {
     @title: 'Exterior & Bodywork'
@@ -318,7 +318,7 @@ entity ConditionLogs : cuid, managed {
     conditionGrade   : ConditionGrade @mandatory @title: 'Condition Grade' @Common.Label: 'Condition Grade';
     suggestedGrade   : ConditionGrade @title: 'Suggested Grade' @Common.Label: 'Suggested Grade';
     inspectionStatus : String(20) default 'Draft' @title: 'Review State' @Common.Label: 'Review State';
-    inspector        : InspectorName default #Yard_Worker @title: 'Inspector Name' @Common.Label: 'Inspector Name';
+    inspector        : String(50) @title: 'Inspector Name' @Common.Label: 'Inspector Name';
     meterReading     : Decimal(10,2) @title: 'Meter Reading (Hours)' @Common.Label: 'Meter Reading (Hours)';
     checklistJson    : LargeString; // Structured inspection checklist items
     notes            : String(500) @title: 'Inspection Notes' @Common.Label: 'Inspection Notes';

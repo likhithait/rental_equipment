@@ -30,6 +30,34 @@
     {
       "name": "$XSAPPNAME.Auditor",
       "description": "Auditor - Read-only access to immutable condition logs and S/4 outbox"
+    },
+    {
+      "name": "$XSAPPNAME.Dispatcher",
+      "description": "Dispatcher"
+    },
+    {
+      "name": "$XSAPPNAME.YardWorker",
+      "description": "YardWorker"
+    },
+    {
+      "name": "$XSAPPNAME.Manager",
+      "description": "Manager"
+    },
+    {
+      "name": "$XSAPPNAME.Admin",
+      "description": "Admin"
+    },
+    {
+      "name": "$XSAPPNAME.Auditor",
+      "description": "Auditor"
+    },
+    {
+      "name": "$XSAPPNAME.Technician",
+      "description": "Technician"
+    },
+    {
+      "name": "$XSAPPNAME.BillingClerk",
+      "description": "BillingClerk"
     }
   ],
   "attributes": [

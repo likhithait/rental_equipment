@@ -2,8 +2,35 @@ import cds from '@sap/cds';
 import express from 'express';
 import path from 'path';
 import { uploadEvidencePhoto } from './common/cloudinary.js';
+import fs from 'fs';
 
 cds.on('bootstrap', (app) => {
+
+    // Verify deployed UI files
+    console.log('index.html exists:', fs.existsSync(path.resolve('public/index.html')));
+    console.log('fiori-auth.js exists:', fs.existsSync(path.resolve('public/fiori-auth.js')));
+    console.log('Component.js exists:', fs.existsSync(path.resolve('public/Component.js')));
+    
+    const staticFolder =
+        fs.existsSync(path.resolve('public'))
+            ? 'public'
+            : 'app';
+
+    app.use(express.static(staticFolder));
+
+    app.get('/', (req, res) => {
+        res.sendFile(path.resolve(staticFolder, 'index.html'));
+    });
+
+    // Current logged-in SAP user
+    app.get('/api/user', (req, res) => {
+        res.json({
+            user: req.user?.id || 'anonymous',
+            roles: req.user?.roles || [],
+            attributes: req.user?.attr || {}
+        });
+    });
+
     // Route any app Component.js request to the single shared app/Component.js
     app.get(['/:app/webapp/Component.js', '/:app/Component.js', '/Component.js'], (req, res, next) => {
         const sharedCompPath = path.resolve('app/Component.js');
@@ -184,7 +211,7 @@ cds.on('bootstrap', (app) => {
             } catch (draftErr) {
                 console.warn('[API /api/upload-evidence] Draft synchronization notice:', draftErr.message);
                 if (!isDraft) {
-                    await db.run(INSERT.into('RentalEquipmentTrackingApp.DamagePhotos').entries(photoRecord)).catch(() => {});
+                    await db.run(INSERT.into('RentalEquipmentTrackingApp.DamagePhotos').entries(photoRecord)).catch(() => { });
                 }
             }
 
@@ -205,7 +232,7 @@ cds.on('bootstrap', (app) => {
     // Cloudinary configuration status check endpoint
     app.get('/api/cloudinary-status', (req, res) => {
         const isConfigured = Boolean(
-            process.env.CLOUDINARY_URL || 
+            process.env.CLOUDINARY_URL ||
             (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY)
         );
         res.json({

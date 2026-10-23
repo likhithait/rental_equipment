@@ -1,8 +1,3 @@
-/**
- * SAP Fiori Enterprise Role-Based Access Control (RBAC) & Navigation Guard
- * Shared across all Fiori Elements applications in the Rental Equipment suite.
- */
-
 const FIORI_ROLES_CONFIG = {
     'Admin': {
         name: 'Vikram Mehta',
@@ -11,58 +6,34 @@ const FIORI_ROLES_CONFIG = {
         color: '#0070f2',
         apps: ['customer-management', 'rentals', 'locations', 'fleet-overview', 'inspections', 'damage-charge-approval', 'repair-jobs', 'maintenance-planner']
     },
-    'Dispatcher': {
-        name: 'Kavita Reddy',
-        title: 'Rental Dispatcher & Coordinator',
-        avatar: 'KR',
-        color: '#00838f',
-        apps: ['customer-management', 'rentals', 'locations', 'fleet-overview', 'inspections']
-    },
     'YardWorker': {
         name: 'Ramesh Patel',
-        title: 'Senior Yard Inspector',
+        title: 'Yard Inspector',
         avatar: 'RP',
         color: '#107e3e',
-        apps: ['fleet-overview', 'locations', 'inspections']
+        apps: ['inspections', 'damage-charge-approval']
     },
     'BillingClerk': {
         name: 'Ananya Sharma',
-        title: 'Billing & Dispute Specialist',
+        title: 'Billing Clerk',
         avatar: 'AS',
         color: '#8e44ad',
-        apps: ['rentals', 'damage-charge-approval']
+        apps: ['damage-charge-approval']
     },
     'Technician': {
         name: 'Mike D\'souza',
-        title: 'Lead Workshop Technician',
+        title: 'Workshop Technician',
         avatar: 'MD',
         color: '#e67e22',
-        apps: ['repair-jobs', 'maintenance-planner', 'fleet-overview', 'locations']
-    },
-    'Manager': {
-        name: 'Sanjay Verma',
-        title: 'Operations & Fleet Director',
-        avatar: 'SV',
-        color: '#2980b9',
-        apps: ['customer-management', 'rentals', 'locations', 'fleet-overview', 'inspections', 'damage-charge-approval', 'repair-jobs', 'maintenance-planner']
-    },
-    'Auditor': {
-        name: 'Pooja Nair',
-        title: 'Compliance & Quality Auditor',
-        avatar: 'PN',
-        color: '#d35400',
-        apps: ['customer-management', 'rentals', 'locations', 'fleet-overview', 'inspections', 'damage-charge-approval']
+        apps: ['repair-jobs', 'maintenance-planner']
     }
 };
 
 const FIORI_USERS = {
     'admin': { role: 'Admin', pass: 'admin123' },
-    'dispatcher': { role: 'Dispatcher', pass: 'disp123' },
     'inspector': { role: 'YardWorker', pass: 'yard123' },
     'finance': { role: 'BillingClerk', pass: 'finance123' },
-    'technician': { role: 'Technician', pass: 'tech123' },
-    'manager': { role: 'Manager', pass: 'mgr123' },
-    'auditor': { role: 'Auditor', pass: 'audit123' }
+    'technician': { role: 'Technician', pass: 'tech123' }
 };
 
 // Check current user session
@@ -263,28 +234,11 @@ function initSubAppGuard(currentAppId, currentAppTitle) {
             }
         });
 
-        // Ensure clean flex layout so the bottom footer bar (Create / Save) is never pushed below the screen
+        // Ensure clean viewport layout for sub-app mode
         document.documentElement.style.height = '100%';
-        document.documentElement.style.margin = '0';
-        document.documentElement.style.padding = '0';
         document.documentElement.style.overflow = 'hidden';
-
         document.body.style.height = '100vh';
-        document.body.style.margin = '0';
-        document.body.style.padding = '0';
         document.body.style.overflow = 'hidden';
-        document.body.style.display = 'flex';
-        document.body.style.flexDirection = 'column';
-        document.body.style.position = 'relative';
-        document.body.style.top = '0';
-
-        const comp = document.querySelector('[data-sap-ui-component]');
-        if (comp) {
-            comp.style.height = 'calc(100vh - 42px)';
-            comp.style.flex = '1 1 auto';
-            comp.style.position = 'relative';
-            comp.style.overflow = 'hidden';
-        }
     });
 
     return true;
@@ -330,7 +284,7 @@ window.openEvidencePhotoCaptureDialog = function(options = {}) {
     if (existingModal) existingModal.remove();
 
     // 1. Determine current entity and ID with robust extraction
-    let entityId = options.entityId || options.conditionLog_ID || options.damage_ID || options.repairBill_ID;
+    let entityId = options.entityId || options.conditionLog_ID || options.damage_ID || options.repairBill_ID || options.repairJob_ID;
     
     // Strategy A: Query active UI5 control binding context
     if (!entityId && window.sap && sap.ui && sap.ui.getCore) {
@@ -355,7 +309,6 @@ window.openEvidencePhotoCaptureDialog = function(options = {}) {
     }
 
     // Strategy B: Match any valid UUID in the URL hash or path (handles Drafts and Active entities)
-    // Strategy B: Match any valid UUID in the URL hash or path (handles Drafts and Active entities)
     if (!entityId) {
         const fullUrl = decodeURIComponent(window.location.href || '');
         const uuidMatch = fullUrl.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
@@ -365,12 +318,13 @@ window.openEvidencePhotoCaptureDialog = function(options = {}) {
     }
 
     const currentUrl = decodeURIComponent(window.location.href);
-    const isInspection = currentUrl.includes('inspection') || currentUrl.includes('ConditionLogs') || options.entityType === 'ConditionLogs';
-    const isDamage = currentUrl.includes('DamageRecords') || options.entityType === 'DamageRecords';
-    const isRepairBill = currentUrl.includes('RepairBills') || currentUrl.includes('damage-charge') || currentUrl.includes('damage charge') || currentUrl.includes('billing') || options.entityType === 'RepairBills';
+    const isInspection = options.entityType === 'ConditionLogs' || currentUrl.includes('inspection') || currentUrl.includes('ConditionLogs');
+    const isDamage = options.entityType === 'DamageRecords' || currentUrl.includes('DamageRecords');
+    const isRepairBill = options.entityType === 'RepairBills' || currentUrl.includes('RepairBills') || currentUrl.includes('damage-charge') || currentUrl.includes('billing');
+    const isRepairJob = options.entityType === 'RepairJobs' || currentUrl.includes('RepairJobs') || currentUrl.includes('repair-jobs');
 
-    const defaultType = options.defaultPhotoType || (isRepairBill ? 'Settlement' : 'Return');
-    const entityLabel = isInspection ? 'Inspection' : (isDamage ? 'Damage Incident' : (isRepairBill ? 'Repair Bill' : 'Record'));
+    const defaultType = options.defaultPhotoType || (isRepairJob ? 'Repair' : (isRepairBill ? 'Settlement' : 'Return'));
+    const entityLabel = isRepairJob ? 'Repair Job' : (isInspection ? 'Inspection' : (isDamage ? 'Damage Incident' : (isRepairBill ? 'Repair Bill' : 'Record')));
 
     // Create modal DOM structure
     const modal = document.createElement('div');
@@ -546,51 +500,32 @@ window.openEvidencePhotoCaptureDialog = function(options = {}) {
         if (window.sap && sap.ui && sap.ui.getCore) {
             try {
                 const core = sap.ui.getCore();
-                // 1. Refresh all table bindings on all UI5 controls
-                document.querySelectorAll('.sapMList, .sapMTable, .sapUiTable, [data-sap-ui]').forEach(t => {
+                // 1. Refresh photos table binding safely
+                document.querySelectorAll('.sapMList, .sapMTable, .sapUiTable').forEach(t => {
                     const ctrl = core.byId(t.id);
-                    if (ctrl) {
-                        if (ctrl.getBinding) {
-                            const b = ctrl.getBinding('items') || ctrl.getBinding('rows');
-                            if (b && b.refresh) {
-                                try { b.refresh(); } catch (e) {}
-                            }
-                        }
-                        if (typeof ctrl.refresh === 'function') {
-                            try { ctrl.refresh(); } catch (e) {}
+                    if (ctrl && ctrl.getBinding) {
+                        const b = ctrl.getBinding('items') || ctrl.getBinding('rows');
+                        if (b && typeof b.refresh === 'function') {
+                            try { b.refresh(); } catch (e) {}
                         }
                     }
                 });
 
-                // 2. Refresh Fiori Elements V4 View binding context
-                document.querySelectorAll('.sapUiXMLView, .sapMPage, .sapUxAPObjectPageLayout').forEach(v => {
+                // 2. Request side effects for photos navigation on active view
+                document.querySelectorAll('.sapUxAPObjectPageLayout').forEach(v => {
                     const viewCtrl = core.byId(v.id);
                     if (viewCtrl && viewCtrl.getBindingContext) {
                         const ctx = viewCtrl.getBindingContext();
-                        if (ctx) {
-                            if (typeof ctx.refresh === 'function') {
-                                try { ctx.refresh(); } catch (e) {}
-                            }
-                            if (typeof ctx.requestSideEffects === 'function') {
-                                try { ctx.requestSideEffects([{ '$NavigationPropertyPath': 'photos' }]); } catch (e) {}
-                            }
+                        if (ctx && typeof ctx.requestSideEffects === 'function') {
+                            try { ctx.requestSideEffects([{ '$NavigationPropertyPath': 'photos' }]); } catch (e) {}
                         }
                     }
                 });
 
-                // 3. Refresh Root Component Model
-                document.querySelectorAll('[data-sap-ui-component]').forEach(c => {
-                    const comp = core.getComponent(c.id);
-                    if (comp && comp.getModel) {
-                        const m = comp.getModel();
-                        if (m && m.refresh) {
-                            try { m.refresh(); } catch (e) {}
-                        }
-                    }
-                });
-
-                // 4. Publish refresh events
-                core.getEventBus().publish("sap.fe.core", "refreshTable");
+                // 3. Publish refresh events safely
+                try {
+                    core.getEventBus().publish("sap.fe.core", "refreshTable");
+                } catch (e) {}
             } catch (e) {}
         }
     };
@@ -720,9 +655,10 @@ window.openEvidencePhotoCaptureDialog = function(options = {}) {
                 conditionLog_ID: isInspection ? entityId : (options.conditionLog_ID || null),
                 damage_ID: isDamage ? entityId : (options.damage_ID || null),
                 repairBill_ID: isRepairBill ? entityId : (options.repairBill_ID || null),
+                repairJob_ID: isRepairJob ? entityId : (options.repairJob_ID || null),
                 latitude: currentLat,
                 longitude: currentLong,
-                uploadedBy: window.getFioriSession ? window.getFioriSession().user : 'Yard Staff'
+                uploadedBy: (window.getFioriSession && window.getFioriSession()?.username) || 'Yard Staff'
             };
 
             const response = await fetch('/api/upload-evidence', {
@@ -771,25 +707,19 @@ window.openEvidencePhotoCaptureDialog = function(options = {}) {
 };
 
 /**
- * Intelligent Observer: Automatically injects "📸 Capture / Upload Photo" button
- * onto tables for Photographic Evidence across all apps.
+ * Intelligent Observer: Hooks standard Create button on Photographic Evidence tables
  */
 function setupPhotoEvidenceTableObserver() {
     setInterval(() => {
-        // Look for sections or table headers mentioning Photo Evidence or Photographic Evidence
         const sectionTitles = document.querySelectorAll('.sapUxAPObjectPageSubSectionHeaderTitle, .sapMTitle, .sapUxAPObjectPageSectionTitle');
         sectionTitles.forEach(titleElem => {
             const text = (titleElem.innerText || '').toLowerCase();
-            if (text.includes('photographic evidence') || text.includes('photo evidence') || text.includes('evidence & hashes')) {
+            if (text.includes('photographic evidence') || text.includes('photo evidence') || text.includes('evidence photos') || text.includes('evidence & hashes') || text.includes('post-repair evidence')) {
                 const section = titleElem.closest('.sapUxAPObjectPageSubSection, .sapUxAPObjectPageSection, section, [role="region"]');
                 if (!section) return;
 
                 const toolbar = section.querySelector('.sapMTB, .sapMToolbar, .sapFDynamicPageTitle, .sapUiTableToolbar');
                 if (!toolbar) return;
-
-                // Remove separate custom button so only standard Create button remains
-                const extraBtns = toolbar.querySelectorAll('.btn-cloudinary-capture-injected, .btn-cloudinary-fallback-create');
-                extraBtns.forEach(b => b.remove());
 
                 // Find the standard Create button on this table and hook it
                 const buttons = toolbar.querySelectorAll('button, .sapMBtn');
@@ -819,6 +749,13 @@ function setupPhotoEvidenceTableObserver() {
                                     }
                                 }
                             }
+                            if (!parentId) {
+                                const fullUrl = decodeURIComponent(window.location.href || '');
+                                const uuidMatch = fullUrl.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+                                if (uuidMatch && uuidMatch[1]) {
+                                    parentId = uuidMatch[1];
+                                }
+                            }
 
                             // Robust entity type detection
                             const fullUrl = decodeURIComponent(window.location.href);
@@ -829,11 +766,14 @@ function setupPhotoEvidenceTableObserver() {
                                 detectedType = 'ConditionLogs';
                             } else if (fullUrl.includes('DamageRecords')) {
                                 detectedType = 'DamageRecords';
+                            } else if (fullUrl.includes('RepairJobs') || fullUrl.includes('repair-jobs') || fullUrl.includes('repair')) {
+                                detectedType = 'RepairJobs';
                             }
 
                             window.openEvidencePhotoCaptureDialog({
                                 entityId: parentId,
                                 entityType: detectedType,
+                                repairJob_ID: detectedType === 'RepairJobs' ? parentId : null,
                                 repairBill_ID: detectedType === 'RepairBills' ? parentId : null,
                                 conditionLog_ID: detectedType === 'ConditionLogs' ? parentId : null,
                                 damage_ID: detectedType === 'DamageRecords' ? parentId : null
@@ -912,4 +852,3 @@ if (document.readyState === 'loading') {
 } else {
     setupPhotoEvidenceTableObserver();
 }
-

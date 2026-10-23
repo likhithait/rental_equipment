@@ -29,9 +29,12 @@
           "testOnBorrow": true
         }
       },
-      "auth": "dummy",
+      "auth": "xsuaa",
       "queue": false,
       "[production]": {
+        "auth": "xsuaa"
+      },
+      "[hybrid]": {
         "auth": "xsuaa"
       }
     }
