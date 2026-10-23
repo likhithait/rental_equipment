@@ -18,10 +18,9 @@ An enterprise-grade **Rental Equipment Tracking and Lifecycle Management System*
 - [Fiori Applications](#-fiori-applications)
 - [OData Services & APIs](#-odata-services--apis)
 - [Project Directory Structure](#-project-directory-structure)
-- [Getting Started](#-getting-started)
+- [Deployment to SAP BTP](#-deployment-to-sap-btp-cloud-foundry)
 - [Automated Tests](#-automated-tests)
 - [Photographic Evidence Integration (Cloudinary)](#-photographic-evidence-integration-cloudinary)
-- [SAP BTP Deployment (MTA)](#-sap-btp-deployment-mta)
 - [Security & Role-Based Access (RBAC)](#-security--role-based-access-rbac)
 - [Business Rules](#-business-rules)
 
@@ -62,7 +61,7 @@ graph TD
     end
 
     subgraph Infrastructure [Data & Cloud Storage]
-        CAPBackend --> HANA[(SAP HANA Cloud HDI / SQLite locally)]
+        CAPBackend --> HANA[(SAP HANA Cloud HDI)]
         SrvApi --> CDN[Cloudinary CDN Photographic Evidence]
         AppRouter --> XSUAA[SAP BTP XSUAA Security]
     end
@@ -86,7 +85,7 @@ graph TD
 | Layer | Technology | Details |
 | :--- | :--- | :--- |
 | **Backend Framework** | SAP CAP (`@sap/cds` v10) | Node.js services with OData v4, Fiori draft handling |
-| **Persistence Layer** | SAP HANA Cloud / `@cap-js/hana` | HDI container on BTP, SQLite (`@cap-js/sqlite`) for local development and tests |
+| **Persistence Layer** | SAP HANA Cloud / `@cap-js/hana` | HDI container on BTP (SQLite only for `npm test`) |
 | **Frontend UI** | SAP Fiori Elements (SAPUI5 1.153) | List Report / Object Page apps in a Fiori launchpad (sandbox) |
 | **Media / CDN** | Cloudinary SDK (`cloudinary` v2) | Image storage for damage proof |
 | **Security & Auth** | SAP BTP XSUAA (`@sap/xssec` v4) | OAuth 2.0 / JWT, role-based access on services and actions |
@@ -110,7 +109,7 @@ The launchpad (`app/index.html`) shows only the tiles that the logged-in user's 
 | [`app/repair-jobs`](app/repair-jobs) | **Workshop Repair Jobs** | MaintenanceService | Admin, Technician, Manager |
 | [`app/maintenance-planner`](app/maintenance-planner) | **Maintenance Planner** | MaintenanceService | Admin, Technician, Manager |
 
-Every app is a standalone UI5 component (`webapp/Component.js`, `manifest.json`, `index.html`) and can also be opened directly, e.g. `http://localhost:4004/rentals/webapp/index.html`.
+Every app is a standalone UI5 component (`webapp/Component.js`, `manifest.json`, `index.html`) and can also be opened directly, e.g. `<approuter-url>/rentals/webapp/index.html`.
 
 ---
 
@@ -152,53 +151,75 @@ sprint/
 │   └── index.cds                     # Service index
 ├── test/rets.test.js                 # API tests (npm test)
 ├── .deploy/app-router/               # SAP Approuter (XSUAA login, CSRF)
-├── mta.yaml                          # Multi-Target Application descriptor
+├── mta.yaml                          # Multi-Target Application descriptor + role collections
+├── cloudinary.mtaext.example         # Deploy-time Cloudinary credentials (copy to cloudinary.mtaext)
 ├── xs-security.json                  # XSUAA scopes & role templates
-└── package.json                      # Dependencies, CAP profiles, mocked users
+└── package.json                      # Dependencies, CAP config, build / deploy scripts
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Deployment to SAP BTP (Cloud Foundry)
 
-### Prerequisites
+The application is built for SAP BTP only: users log in through the **SAP Approuter** with **XSUAA**
+(SAP login page, no local user/password pop-up) and work on **SAP HANA Cloud**.
 
-- **Node.js** 22 or newer
-- **SAP CDS DK**: `npm i -g @sap/cds-dk` (or use `npx cds`)
-- **Cloud Foundry CLI** and **MBT** (only for SAP BTP deployments)
+### Prerequisites (once per subaccount)
 
-### Installation & Local Run
+1. **Cloud Foundry** enabled in the subaccount and a space (e.g. `dev`).
+2. **Entitlements**: SAP HANA Cloud (`hana-free` / `hana` + `tools`), SAP HANA Schemas & HDI Containers (`hdi-shared`),
+   Authorization and Trust Management Service (`application`), Cloud Foundry Runtime (≥ 1 GB).
+3. **SAP HANA Cloud instance** created, mapped to the Cloud Foundry space and **running**
+   (trial / free-tier instances stop every night - start them again in HANA Cloud Central).
+4. **SAP Business Application Studio** dev space *Full Stack Cloud Application* (has `mbt` and `cf` built in).
+
+### Build and deploy
 
 ```bash
+git clone https://github.com/saurabh-1907/deepeshwar-sprint.git sprint
+cd sprint
 npm install
-npm run watch          # = cds watch (profile "development": in-memory SQLite + mocked users)
+cf login                     # API endpoint of your subaccount, e.g. https://api.cf.us10-001.hana.ondemand.com
+npm run build                # = mbt build  -> mta_archives/sprint_1.0.0.mtar
+npm run deploy               # = cf deploy mta_archives/sprint_1.0.0.mtar
 ```
 
-Open the launchpad at [http://localhost:4004/index.html](http://localhost:4004/index.html) and log in with one of the mocked users (user name = password):
+With Cloudinary for the evidence photos: copy `cloudinary.mtaext.example` to `cloudinary.mtaext` (git-ignored), fill in
+`CLOUDINARY_URL` and deploy with `cf deploy mta_archives/sprint_1.0.0.mtar -e cloudinary.mtaext`.
+Without it, photos are stored as SHA-256 sealed data URIs in HANA.
 
-| User | Role |
+`cf deploy` creates / updates:
+
+| Module / Resource | What it is |
 | :--- | :--- |
-| `admin` | Admin |
-| `manager` | Manager |
-| `dispatcher` | Dispatcher |
-| `inspector` | YardWorker |
-| `technician` | Technician |
-| `billing` | BillingClerk |
-| `auditor` | Auditor |
+| `sprint` | Approuter (256 MB) - **the public URL of the app**, XSUAA login, CSRF protection |
+| `sprint-srv` | CAP Node.js server (512 MB), also serves the Fiori launchpad and apps |
+| `sprint-db-deployer` | Deploys tables, views and the demo data (`db/data`) into the HDI container |
+| `RETS` | HDI container (`hdi-shared`) on SAP HANA Cloud |
+| `sprint-auth` | XSUAA instance (`application`) with the role collections below |
 
-The demo data in `db/data/*.csv` (XYZ Construction / CAT 320 scenario: customers, depots, equipment, contracts, inspections, damages, repair bill, pricing rules) is loaded automatically.
+### After the deployment
 
-### Environment Configuration (optional)
+1. `cf apps` → copy the URL of **`sprint`** (the approuter). This is the link for all users.
+2. BTP cockpit → Subaccount → **Security → Role Collections** → assign users (identity provider *Default identity provider*,
+   SAP account e-mail) to the role collections:
 
-Create a local `.env` file based on [`.env.example`](.env.example) to upload photos to Cloudinary:
+   | Role collection | Role | Launchpad tiles |
+   | :--- | :--- | :--- |
+   | `RETS_Admin (<org>-<space>)` | Admin | all apps |
+   | `RETS_Manager (<org>-<space>)` | Manager | all apps, approves bills, locks inspections |
+   | `RETS_Dispatcher (<org>-<space>)` | Dispatcher | Customers, Fleet, Rentals, Depots, Inspections |
+   | `RETS_YardWorker (<org>-<space>)` | YardWorker | Fleet, Depots, Inspections, Damage Charges |
+   | `RETS_Technician (<org>-<space>)` | Technician | Repair Jobs, Maintenance Planner, Damage Charges |
+   | `RETS_BillingClerk (<org>-<space>)` | BillingClerk | Damage Charge Approval |
+   | `RETS_Auditor (<org>-<space>)` | Auditor | read-only: Fleet, Rentals, Depots, Inspections, Damage Charges |
 
-```ini
-CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
-```
+   A user can have several role collections. Log out and in again after a change.
+3. Open the link → SAP login → **Fiori launchpad** with the tiles of your roles; the shell header shows your name.
+   **Sign Out** in the user menu logs out of XSUAA (`/do/logout`).
 
-> [!IMPORTANT]
-> The `.env` file is ignored by Git. Without Cloudinary credentials, photos are stored as SHA-256 sealed data URIs in the database.
-
+**Updating** after code changes: `git pull`, `npm run build`, `npm run deploy` again.
+`sprint-srv` alone (without the approuter) answers `401` - always use the approuter URL.
 ---
 
 ## 🧪 Automated Tests
@@ -207,7 +228,8 @@ CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
 npm test
 ```
 
-The tests run against an in-memory SQLite database with the demo data and cover login and roles, the rental contract lifecycle, check-out / check-in inspections, locking, photo evidence (including drafts), damage billing and workshop repairs.
+The tests need no BTP services: they run against an in-memory SQLite database with the demo data and
+test logins per role (`package.json` → `cds.requires.[test]`), and cover login and roles, the rental contract lifecycle, check-out / check-in inspections, locking, photo evidence (including drafts), damage billing and workshop repairs.
 
 ---
 
@@ -223,35 +245,11 @@ During yard inspections and damage billing, the **Capture Photo** action of the 
 
 ---
 
-## ☁ SAP BTP Deployment (MTA)
-
-1. **Cloudinary credentials** (optional, once per space):
-   ```bash
-   cf cups sprint-cloudinary -p '{"CLOUDINARY_URL":"cloudinary://<api_key>:<api_secret>@<cloud_name>"}'
-   ```
-   Without this service, remove the `sprint-cloudinary` entries from `mta.yaml`.
-2. **Build the MTA archive**:
-   ```bash
-   mbt build
-   ```
-3. **Deploy to the SAP BTP space**:
-   ```bash
-   cf deploy mta_archives/sprint_1.0.0.mtar
-   ```
-4. **Assign role collections** (BTP cockpit → Security → Role Collections), e.g. `Dispatcher (sprint <org>-<space>)`, to the users.
-
-The MTA builds and deploys:
-
-- **`sprint`**: approuter with XSUAA login and CSRF protection (`.deploy/app-router`).
-- **`sprint-srv`**: CAP Node.js server, also serving the Fiori apps and the launchpad (`gen/srv/app`).
-- **`sprint-db-deployer`**: HDI deployer for tables, views and demo data in the `RETS` HDI container.
-- **`sprint-auth`**: XSUAA instance with the role collections of `mta.yaml`.
-
----
 
 ## 🔐 Security & Role-Based Access (RBAC)
 
-Roles are defined in [`xs-security.json`](xs-security.json) and enforced by CAP (`@requires` / `@restrict` on services, entities **and actions**):
+Users log in with their SAP account through the approuter (XSUAA). Roles are defined in [`xs-security.json`](xs-security.json),
+bundled into the `RETS_*` role collections in [`mta.yaml`](mta.yaml) and enforced by CAP (`@requires` / `@restrict` on services, entities **and actions**):
 
 | Role | Description |
 | :--- | :--- |

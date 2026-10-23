@@ -31,7 +31,8 @@ modules:
     requires:
       - name: sprint-auth
       - name: RETS
-      - name: sprint-cloudinary # optional: without Cloudinary photos are stored as SHA-256 sealed data URIs
+    # CLOUDINARY_URL is set at deploy time: cf deploy ... -e cloudinary.mtaext (see cloudinary.mtaext.example);
+    # without it, evidence photos are stored as SHA-256 sealed data URIs in HANA
 
   - name: sprint-db-deployer
     type: hdb
@@ -46,7 +47,7 @@ modules:
     type: approuter.nodejs
     path: .deploy/app-router
     build-parameters:
-      ignore: ["node_modules/", "default-env.json"]
+      ignore: ["node_modules/"]
     parameters:
       keep-existing-routes: true
       disk-quota: 256M
@@ -82,31 +83,31 @@ resources:
           redirect-uris:
             - https://*~{app-api/app-uri}/**
         role-collections:
-          - name: 'Dispatcher (sprint ${org}-${space})'
+          - name: 'RETS_Dispatcher (${org}-${space})'
             description: 'Rental dispatch, contracts and transfers'
             role-template-references:
               - '$XSAPPNAME.Dispatcher'
-          - name: 'YardWorker (sprint ${org}-${space})'
+          - name: 'RETS_YardWorker (${org}-${space})'
             description: 'Yard inspections and damage photos'
             role-template-references:
               - '$XSAPPNAME.YardWorker'
-          - name: 'Manager (sprint ${org}-${space})'
+          - name: 'RETS_Manager (${org}-${space})'
             description: 'Approvals and pricing rules'
             role-template-references:
               - '$XSAPPNAME.Manager'
-          - name: 'Admin (sprint ${org}-${space})'
+          - name: 'RETS_Admin (${org}-${space})'
             description: 'Full access'
             role-template-references:
               - '$XSAPPNAME.Admin'
-          - name: 'Auditor (sprint ${org}-${space})'
+          - name: 'RETS_Auditor (${org}-${space})'
             description: 'Read-only audit access'
             role-template-references:
               - '$XSAPPNAME.Auditor'
-          - name: 'Technician (sprint ${org}-${space})'
+          - name: 'RETS_Technician (${org}-${space})'
             description: 'Workshop repair jobs and maintenance'
             role-template-references:
               - '$XSAPPNAME.Technician'
-          - name: 'BillingClerk (sprint ${org}-${space})'
+          - name: 'RETS_BillingClerk (${org}-${space})'
             description: 'Repair bills, adjustments and invoicing'
             role-template-references:
               - '$XSAPPNAME.BillingClerk'
@@ -118,9 +119,3 @@ resources:
     parameters:
       service: hana
       service-plan: hdi-shared
-
-  # Cloudinary credentials as user-provided service, create it once per space:
-  #   cf cups sprint-cloudinary -p '{"CLOUDINARY_URL":"cloudinary://<api_key>:<api_secret>@<cloud_name>"}'
-  - name: sprint-cloudinary
-    type: org.cloudfoundry.existing-service
-    optional: true

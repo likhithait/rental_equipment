@@ -17,7 +17,8 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "watch": "cds watch",
+    "build": "mbt build",
+    "deploy": "cf deploy mta_archives/sprint_1.0.0.mtar",
     "test": "CDS_ENV=test node --test test/rets.test.js",
     "lint": "eslint .",
     "build:apps": "mkdir -p gen/srv/app && cp -r app/index.html app/common app/customer-management app/damage-charge-approval app/fleet-overview app/inspections app/locations app/maintenance-planner app/rentals app/repair-jobs gen/srv/app/"
@@ -37,25 +38,9 @@
       },
       "auth": "xsuaa",
       "queue": false,
-      "[development]": {
-        "db": {
-          "kind": "sqlite",
-          "credentials": {
-            "url": ":memory:"
-          }
-        },
-        "auth": {
-          "kind": "mocked",
-          "users": {
-            "admin": { "password": "admin", "roles": ["Admin"] },
-            "manager": { "password": "manager", "roles": ["Manager"] },
-            "dispatcher": { "password": "dispatcher", "roles": ["Dispatcher"] },
-            "inspector": { "password": "inspector", "roles": ["YardWorker"] },
-            "technician": { "password": "technician", "roles": ["Technician"] },
-            "billing": { "password": "billing", "roles": ["BillingClerk"] },
-            "auditor": { "password": "auditor", "roles": ["Auditor"] }
-          }
-        }
+      "[production]": {
+        "db": "hana",
+        "auth": "xsuaa"
       },
       "[test]": {
         "db": {
@@ -67,13 +52,48 @@
         "auth": {
           "kind": "mocked",
           "users": {
-            "admin": { "password": "admin", "roles": ["Admin"] },
-            "manager": { "password": "manager", "roles": ["Manager"] },
-            "dispatcher": { "password": "dispatcher", "roles": ["Dispatcher"] },
-            "inspector": { "password": "inspector", "roles": ["YardWorker"] },
-            "technician": { "password": "technician", "roles": ["Technician"] },
-            "billing": { "password": "billing", "roles": ["BillingClerk"] },
-            "auditor": { "password": "auditor", "roles": ["Auditor"] },
+            "admin": {
+              "password": "admin",
+              "roles": [
+                "Admin"
+              ]
+            },
+            "manager": {
+              "password": "manager",
+              "roles": [
+                "Manager"
+              ]
+            },
+            "dispatcher": {
+              "password": "dispatcher",
+              "roles": [
+                "Dispatcher"
+              ]
+            },
+            "inspector": {
+              "password": "inspector",
+              "roles": [
+                "YardWorker"
+              ]
+            },
+            "technician": {
+              "password": "technician",
+              "roles": [
+                "Technician"
+              ]
+            },
+            "billing": {
+              "password": "billing",
+              "roles": [
+                "BillingClerk"
+              ]
+            },
+            "auditor": {
+              "password": "auditor",
+              "roles": [
+                "Auditor"
+              ]
+            },
             "alice": false,
             "bob": false,
             "carol": false,

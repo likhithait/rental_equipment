@@ -12,8 +12,6 @@ dist/
 .cdsrc-private.json
 .cds-services.json
 default-*.json
-# approuter: local destination for hybrid testing (no secrets)
-!.deploy/app-router/default-env.json
 .deploy/app-router/node_modules/
 *.sqlite
 *.sqlite3
@@ -118,3 +116,6 @@ Desktop.ini
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# MTA extension descriptors carry deploy-time secrets (e.g. CLOUDINARY_URL)
+*.mtaext

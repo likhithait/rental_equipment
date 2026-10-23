@@ -14,13 +14,18 @@ export default class LaunchpadService extends cds.ApplicationService {
         } = cds.entities('RentalEquipmentTrackingApp');
         const exists = async (entity, ID) => Boolean(await db.run(SELECT.one.from(entity).columns('ID').where({ ID })));
 
+        // XSUAA JWT of the logged-in user (forwarded by the approuter)
+        const tokenPayload = (req) =>
+            req.user?.authInfo?.token?.payload ?? req.user?.tokenInfo?.getPayload?.() ?? {};
+
         this.on('whoAmI', (req) => {
             const attr = req.user.attr || {};
-            const name = [attr.givenName, attr.familyName].filter(Boolean).join(' ');
+            const payload = tokenPayload(req);
+            const name = [attr.givenName ?? payload.given_name, attr.familyName ?? payload.family_name].filter(Boolean).join(' ');
             return {
                 user: req.user.id,
                 name: name || req.user.id,
-                email: attr.email || null,
+                email: attr.email ?? payload.email ?? null,
                 roles: ROLES.filter((role) => req.user.is(role))
             };
         });

@@ -1,5 +1,5 @@
 {
-  "xsappname": "sprint",
+  "xsappname": "rets-sprint",
   "tenant-mode": "dedicated",
   "description": "Security profile for Rental Equipment Tracking & Condition Logging (RETS)",
   "scopes": [
@@ -32,7 +32,6 @@
       "description": "Auditor - Read-only access to immutable condition logs and S/4 outbox"
     }
   ],
-  "attributes": [],
   "role-templates": [
     {
       "name": "YardWorker",
@@ -84,12 +83,5 @@
       ]
     }
   ],
-  "oauth2-configuration": {
-    "redirect-uris": [
-      "https://*.applicationstudio.cloud.sap/**",
-      "https://*.hana.ondemand.com/**",
-      "http://localhost:5000/**"
-    ]
-  },
   "authorities-inheritance": false
 }
