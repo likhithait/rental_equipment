@@ -12,7 +12,6 @@ An enterprise-grade **Rental Equipment Tracking and Lifecycle Management System*
 
 ## 📑 Table of Contents
 
-- [Deployment to SAP BTP](#-deployment-to-sap-btp-cloud-foundry)
 - [Overview & Architecture](#-overview--architecture)
 - [Key Features & Modules](#-key-features--modules)
 - [Enterprise Tech Stack](#-enterprise-tech-stack)
@@ -21,151 +20,9 @@ An enterprise-grade **Rental Equipment Tracking and Lifecycle Management System*
 - [Project Directory Structure](#-project-directory-structure)
 - [Automated Tests](#-automated-tests)
 - [Photographic Evidence Integration (Cloudinary)](#-photographic-evidence-integration-cloudinary)
+- [SAP BTP Deployment (MTA)](#-sap-btp-deployment-mta)
 - [Security & Role-Based Access (RBAC)](#-security--role-based-access-rbac)
 - [Business Rules](#-business-rules)
-
----
-
-## 🚀 Deployment to SAP BTP (Cloud Foundry)
-
-RETS runs **only on SAP BTP**: users open the approuter URL, log in on the **SAP login page (XSUAA)** and get the
-Fiori launchpad with the tiles of their role collections. Data lives in **SAP HANA Cloud**.
-
-**Quick deploy** (when the BTP prerequisites below are already in place):
-
-```bash
-git clone https://github.com/saurabh-1907/deepeshwar-sprint.git sprint && cd sprint
-npm install
-cf login                 # API endpoint of your subaccount
-npm run build            # mbt build  -> mta_archives/sprint_1.0.0.mtar
-npm run deploy           # cf deploy mta_archives/sprint_1.0.0.mtar
-```
-Then assign the `RETS_*` role collections to the users (step 7) and open the URL of the app **`sprint`** (step 8).
-
-### Step 1 - BTP account and subaccount (once)
-
-1. Use a **trial** account (https://account.hanatrial.ondemand.com) or a **free tier** account.
-2. In the subaccount: **Overview → Enable Cloud Foundry**, then **Create Space** (e.g. `dev`).
-3. Note the **API Endpoint** from the subaccount overview, e.g. `https://api.cf.us10-001.hana.ondemand.com`.
-4. Add yourself as **Space Developer** (Cloud Foundry → Spaces → `dev` → Members) - done automatically for the creator.
-
-### Step 2 - Entitlements (once)
-
-Subaccount → **Entitlements → Edit → Add Service Plans**:
-
-| Service | Plan |
-| :--- | :--- |
-| SAP HANA Cloud | `hana-free` (free tier) / `hana` (trial) **and** `tools` |
-| SAP HANA Schemas & HDI Containers | `hdi-shared` |
-| Authorization and Trust Management Service | `application` |
-| Cloud Foundry Runtime | `MEMORY` - at least 1 GB (the MTA needs ~1 GB: 512 MB server, 256 MB approuter, 256 MB deployer while deploying) |
-| SAP Business Application Studio | `free` / `standard-edition` (subscription) |
-
-### Step 3 - SAP HANA Cloud instance (once)
-
-1. Subaccount → **Services → Instances and Subscriptions → Create**: *SAP HANA Cloud*, plan `tools` (subscription).
-   Assign yourself the role collection **SAP HANA Cloud Administrator** (Security → Users).
-2. Open **SAP HANA Cloud Central** → **Create Instance** → *SAP HANA Cloud, SAP HANA Database*:
-   - set the **DBADMIN** password,
-   - *Connections*: **Allow all IP addresses**,
-   - *Instance Mapping* / runtime environment: **Cloud Foundry**, your **org** and space **`dev`**.
-3. Wait until the status is **Running**.
-
-> [!NOTE]
-> Trial and free-tier HANA instances **stop every night**. Start them again in HANA Cloud Central before you deploy or
-> use the app (and run `cf restart sprint-srv` if the app was started while HANA was down).
-
-### Step 4 - Business Application Studio (once)
-
-1. Subaccount → Instances and Subscriptions → **SAP Business Application Studio → Go to Application**.
-2. **Create Dev Space** → name `rets` → type **Full Stack Cloud Application** → *Create* → start and open it.
-3. *Terminal → New Terminal* and check: `node -v` (22 or higher), `mbt --version`, `cf --version`.
-
-### Step 5 - Get the code and log in to Cloud Foundry
-
-```bash
-cd ~/projects
-git clone https://github.com/saurabh-1907/deepeshwar-sprint.git sprint
-cd sprint
-npm install
-cf login -a https://api.cf.us10-001.hana.ondemand.com     # your API endpoint from step 1; choose org + space dev
-```
-(Or *View → Command Palette → CF: Login to Cloud Foundry*.)
-
-### Step 6 - Build and deploy
-
-```bash
-npm run build      # = mbt build        -> mta_archives/sprint_1.0.0.mtar
-npm run deploy     # = cf deploy mta_archives/sprint_1.0.0.mtar
-```
-(Or right-click `mta.yaml` → **Build MTA Project**, then right-click the `.mtar` → **Deploy MTA Archive**.)
-The first deployment takes about 5-10 minutes and creates:
-
-| Module / Resource | What it is |
-| :--- | :--- |
-| `sprint` | Approuter (256 MB) - **the public URL of the app**, XSUAA login, CSRF protection |
-| `sprint-srv` | CAP Node.js server (512 MB), also serves the Fiori launchpad and the 8 apps |
-| `sprint-db-deployer` | Deploys tables, views and the demo data (`db/data`) into the HDI container, then stops |
-| `RETS` | HDI container (`hdi-shared`) in your SAP HANA Cloud instance |
-| `sprint-auth` | XSUAA instance (`application`) with the 7 `RETS_*` role collections |
-
-**Optional - Cloudinary for the evidence photos:**
-```bash
-cp cloudinary.mtaext.example cloudinary.mtaext     # git-ignored, put CLOUDINARY_URL inside
-cf deploy mta_archives/sprint_1.0.0.mtar -e cloudinary.mtaext
-```
-Without it, photos are stored as SHA-256 sealed data URIs in HANA.
-
-### Step 7 - Give the users their roles
-
-BTP cockpit → Subaccount → **Security → Role Collections** → select a collection → **Edit** → *Users* → add the
-user's **e-mail** (identity provider **Default identity provider**, i.e. the SAP account) → **Save**.
-
-| Role collection | Role | Launchpad tiles | Can do |
-| :--- | :--- | :--- | :--- |
-| `RETS_Admin (<org>-dev)` | Admin | all 8 apps | everything |
-| `RETS_Manager (<org>-dev)` | Manager | all 8 apps | approve / reject bills, lock inspections, pricing rules |
-| `RETS_Dispatcher (<org>-dev)` | Dispatcher | Customers, Fleet, Rentals, Depots, Inspections | contracts, check-out / cancel, transfers |
-| `RETS_YardWorker (<org>-dev)` | YardWorker | Fleet, Depots, Inspections, Damage Charges | inspections, damages, photos, check-in |
-| `RETS_Technician (<org>-dev)` | Technician | Repair Jobs, Maintenance Planner, Damage Charges | repair jobs, maintenance, release equipment |
-| `RETS_BillingClerk (<org>-dev)` | BillingClerk | Damage Charge Approval | calculate, adjust, dispute, post bills |
-| `RETS_Auditor (<org>-dev)` | Auditor | Fleet, Rentals, Depots, Inspections, Damage Charges | read only |
-
-- Every user needs an **SAP account** (free at https://accounts.sap.com).
-- A user can have several role collections (e.g. Dispatcher + YardWorker).
-- After a change the user must **log out and in again** (`<app-url>/do/logout`).
-
-### Step 8 - Open the app
-
-```bash
-cf apps            # the "routes" column of "sprint" is the app URL
-```
-Open `https://<route of sprint>` → SAP login → **Fiori launchpad**. The shell header shows the user's name;
-**Sign Out** in the user menu logs out of XSUAA. Share this URL with all users.
-
-### Updating and removing
-
-| Task | Command |
-| :--- | :--- |
-| Deploy a new version | `git pull` → `npm install` → `npm run build` → `npm run deploy` |
-| Show logs of the server | `cf logs sprint-srv --recent` |
-| Restart after HANA was stopped | `cf restart sprint-srv` |
-| Remove everything (apps, HDI container, XSUAA) | `cf undeploy sprint --delete-services --delete-service-keys` |
-
-> [!IMPORTANT]
-> Every deployment re-imports the demo data of `db/data` into the tables that have a CSV file. For productive use,
-> delete those CSV files (or replace them with your master data) before deploying.
-
-### Troubleshooting
-
-| Problem | Cause / fix |
-| :--- | :--- |
-| `cf deploy` fails at `RETS`: *no SAP HANA instance* / *hdi-shared not entitled* | HANA instance not running or not mapped to this space (step 3), or `hdi-shared` missing (step 2) |
-| `cf deploy` fails with *memory quota exceeded* | add Cloud Foundry Runtime memory to the space (step 2) or stop other apps |
-| Login works but the launchpad has **no tiles** | user has no `RETS_*` role collection (step 7) - assign it, then log out / in |
-| `403 Forbidden` on an action | the action needs another role (see the table in step 7) |
-| `401` when opening `sprint-srv` directly | expected - always use the approuter URL of **`sprint`** |
-| App was working, now errors after a night | trial / free-tier HANA stopped - start it in HANA Cloud Central, `cf restart sprint-srv` |
 
 ---
 
@@ -252,7 +109,7 @@ The launchpad (`app/index.html`) shows only the tiles that the logged-in user's 
 | [`app/repair-jobs`](app/repair-jobs) | **Workshop Repair Jobs** | MaintenanceService | Admin, Technician, Manager |
 | [`app/maintenance-planner`](app/maintenance-planner) | **Maintenance Planner** | MaintenanceService | Admin, Technician, Manager |
 
-Every app is a standalone UI5 component (`webapp/Component.js`, `manifest.json`, `index.html`) and can also be opened directly, e.g. `<approuter-url>/rentals/webapp/index.html`.
+Every app is a standalone UI5 component (`webapp/Component.js`, `manifest.json`, `index.html`) and can also be opened directly, e.g. `<link>/rentals/webapp/index.html`.
 
 ---
 
@@ -295,9 +152,8 @@ sprint/
 ├── test/rets.test.js                 # API tests (npm test)
 ├── .deploy/app-router/               # SAP Approuter (XSUAA login, CSRF)
 ├── mta.yaml                          # Multi-Target Application descriptor + role collections
-├── cloudinary.mtaext.example         # Deploy-time Cloudinary credentials (copy to cloudinary.mtaext)
 ├── xs-security.json                  # XSUAA scopes & role templates
-└── package.json                      # Dependencies, CAP config, build / deploy scripts
+└── package.json                      # Dependencies, CAP config, test logins
 ```
 
 ---
@@ -326,20 +182,58 @@ During yard inspections and damage billing, the **Capture Photo** action of the 
 ---
 
 
+## ☁ SAP BTP Deployment (MTA)
+
+**Prerequisites:** Cloud Foundry enabled in the subaccount, SAP HANA Cloud instance **running** and mapped to the CF space,
+BAS dev space *Full Stack Cloud Application* (has `mbt` and `cf deploy` built in).
+
+```bash
+cd ~/projects/sprint
+git pull
+npm install
+cf login                                   # API endpoint of your subaccount, e.g. https://api.cf.us10-001.hana.ondemand.com
+mbt build                                  # creates mta_archives/sprint_1.0.0.mtar
+cf deploy mta_archives/sprint_1.0.0.mtar
+```
+
+`cf deploy` creates/updates: the HDI container `RETS` (`hdi-shared`), the XSUAA instance `sprint-auth`
+(plan `application`), the CAP server `sprint-srv` (512 MB), the approuter `sprint` (256 MB)
+and deploys tables + sample data.
+
+**After the deployment**
+
+1. `cf apps` → copy the URL of **sprint** (the approuter) – this is the public link of the app.
+2. BTP cockpit → Subaccount → Security → **Role Collections** → add the users
+   (identity provider **Default identity provider**; the user needs an SAP account – free at accounts.sap.com):
+   - **RETS_Admin (org-space)**, **RETS_Manager (org-space)**, **RETS_Dispatcher (org-space)**, **RETS_YardWorker (org-space)**,
+     **RETS_Technician (org-space)**, **RETS_BillingClerk (org-space)**, **RETS_Auditor (org-space)** – see [roles](#-security--role-based-access-rbac).
+3. Users open the link → SAP login → Fiori launchpad with the tiles of their role. Logout: `<link>/do/logout`.
+
+**Updating** after code changes: `git pull`, `mbt build`, `cf deploy mta_archives/sprint_1.0.0.mtar` again.
+
+**Trial notes:** HANA Cloud stops every night – start it in HANA Cloud Central; then `cf restart sprint-srv` if needed.
+
+**Cloudinary (optional):** `cf set-env sprint-srv CLOUDINARY_URL "cloudinary://<api_key>:<api_secret>@<cloud_name>"`
+and `cf restage sprint-srv` (repeat after each `cf deploy`). Without it, evidence photos are stored as SHA-256 sealed data URIs in HANA.
+
+---
+
 ## 🔐 Security & Role-Based Access (RBAC)
 
-Users log in with their SAP account through the approuter (XSUAA). Roles are defined in [`xs-security.json`](xs-security.json),
-bundled into the `RETS_*` role collections in [`mta.yaml`](mta.yaml) and enforced by CAP (`@requires` / `@restrict` on services, entities **and actions**):
+Users log in with their SAP account through the approuter (XSUAA). Roles are defined in [`xs-security.json`](xs-security.json)
+and enforced by CAP (`@requires` / `@restrict` on services, entities **and actions**):
 
-| Role | Description |
-| :--- | :--- |
-| `Dispatcher` | Customers, depots, equipment master, rental contracts, check-out / cancel / transfer |
-| `YardWorker` | Inspections, damage records, photo evidence, check-in |
-| `Technician` | Repair jobs, maintenance records, release of repaired equipment |
-| `BillingClerk` | Calculate, adjust, dispute and post repair bills |
-| `Manager` | All operations incl. approving / rejecting bills and locking inspections |
-| `Admin` | Full access |
-| `Auditor` | Read-only access to all records and the S/4HANA outbox |
+| Role collection | Role | Sees in the launchpad | Can do |
+| :--- | :--- | :--- | :--- |
+| **RETS_Admin** | Admin | all 8 tiles | everything |
+| **RETS_Manager** | Manager | all 8 tiles | approve / reject bills, lock inspections, pricing rules |
+| **RETS_Dispatcher** | Dispatcher | Customers, Fleet, Rentals, Depots, Inspections | customers, depots, contracts, check-out / cancel / transfer |
+| **RETS_YardWorker** | YardWorker | Fleet, Depots, Inspections, Damage Charges | inspections, damage records, photo evidence, check-in |
+| **RETS_Technician** | Technician | Repair Jobs, Maintenance Planner, Damage Charges | repair jobs, maintenance, release of repaired equipment |
+| **RETS_BillingClerk** | BillingClerk | Damage Charge Approval | calculate, adjust, dispute and post repair bills |
+| **RETS_Auditor** | Auditor | Fleet, Rentals, Depots, Inspections, Damage Charges | read only |
+
+Deployed app: use the collections named **RETS_&lt;Role&gt; (org-space)**. `…/api/whoAmI()` shows login and roles.
 
 ---
 

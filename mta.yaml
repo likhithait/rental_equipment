@@ -1,26 +1,23 @@
 _schema-version: 3.3.0
 ID: sprint
 version: 1.0.0
-description: "RETS - Rental Equipment Tracking System (SAP CAP Node.js + Fiori Elements)"
-
+description: "RETS - Rental Equipment Tracking System - SAP CAP Node.js"
 parameters:
   enable-parallel-deployments: true
-
 build-parameters:
   before-all:
     - builder: custom
       commands:
         - npm ci
         - npx cds build --production
-        - npm run build:apps # copy Fiori apps + launchpad next to the CAP server (served from gen/srv/app)
-
+        - npm run build:apps # copy Fiori apps + launchpad next to the CAP server
 modules:
   - name: sprint-srv
     type: nodejs
     path: gen/srv
     parameters:
       instances: 1
-      memory: 512M
+      memory: 512M # fits the BTP free tier / trial quota
       buildpack: nodejs_buildpack
     build-parameters:
       builder: npm-ci
@@ -29,10 +26,8 @@ modules:
         properties:
           srv-url: ${default-url}
     requires:
-      - name: sprint-auth
       - name: RETS
-    # CLOUDINARY_URL is set at deploy time: cf deploy ... -e cloudinary.mtaext (see cloudinary.mtaext.example);
-    # without it, evidence photos are stored as SHA-256 sealed data URIs in HANA
+      - name: sprint-auth
 
   - name: sprint-db-deployer
     type: hdb
@@ -42,12 +37,11 @@ modules:
       buildpack: nodejs_buildpack
     requires:
       - name: RETS
-
   - name: sprint
     type: approuter.nodejs
     path: .deploy/app-router
     build-parameters:
-      ignore: ["node_modules/"]
+      ignore: ["node_modules/", "default-env.json"]
     parameters:
       keep-existing-routes: true
       disk-quota: 256M
@@ -67,6 +61,11 @@ modules:
           app-uri: ${default-uri}
 
 resources:
+  - name: RETS
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared # free tier: needs a SAP HANA Cloud instance (plan hana-free)
   - name: sprint-auth
     type: org.cloudfoundry.managed-service
     parameters:
@@ -83,39 +82,26 @@ resources:
           redirect-uris:
             - https://*~{app-api/app-uri}/**
         role-collections:
+          - name: 'RETS_Admin (${org}-${space})'
+            role-template-references:
+              - '$XSAPPNAME.Admin'
+          - name: 'RETS_Manager (${org}-${space})'
+            role-template-references:
+              - '$XSAPPNAME.Manager'
           - name: 'RETS_Dispatcher (${org}-${space})'
-            description: 'Rental dispatch, contracts and transfers'
             role-template-references:
               - '$XSAPPNAME.Dispatcher'
           - name: 'RETS_YardWorker (${org}-${space})'
-            description: 'Yard inspections and damage photos'
             role-template-references:
               - '$XSAPPNAME.YardWorker'
-          - name: 'RETS_Manager (${org}-${space})'
-            description: 'Approvals and pricing rules'
-            role-template-references:
-              - '$XSAPPNAME.Manager'
-          - name: 'RETS_Admin (${org}-${space})'
-            description: 'Full access'
-            role-template-references:
-              - '$XSAPPNAME.Admin'
-          - name: 'RETS_Auditor (${org}-${space})'
-            description: 'Read-only audit access'
-            role-template-references:
-              - '$XSAPPNAME.Auditor'
           - name: 'RETS_Technician (${org}-${space})'
-            description: 'Workshop repair jobs and maintenance'
             role-template-references:
               - '$XSAPPNAME.Technician'
           - name: 'RETS_BillingClerk (${org}-${space})'
-            description: 'Repair bills, adjustments and invoicing'
             role-template-references:
               - '$XSAPPNAME.BillingClerk'
+          - name: 'RETS_Auditor (${org}-${space})'
+            role-template-references:
+              - '$XSAPPNAME.Auditor'
     requires:
       - name: app-api
-
-  - name: RETS # HDI container of the CAP model (gen/db)
-    type: com.sap.xs.hdi-container
-    parameters:
-      service: hana
-      service-plan: hdi-shared

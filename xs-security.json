@@ -1,87 +1,143 @@
 {
-  "xsappname": "rets-sprint",
+  "xsappname": "sprint",
   "tenant-mode": "dedicated",
-  "description": "Security profile for Rental Equipment Tracking & Condition Logging (RETS)",
   "scopes": [
     {
-      "name": "$XSAPPNAME.YardWorker",
-      "description": "Yard Worker - Scan QR/barcode, return inspections, damage photos"
-    },
-    {
-      "name": "$XSAPPNAME.Dispatcher",
-      "description": "Dispatcher - Rental check-out, equipment transfers, override reason"
-    },
-    {
-      "name": "$XSAPPNAME.Technician",
-      "description": "Technician - Workshop repair orders, release from quarantine"
-    },
-    {
-      "name": "$XSAPPNAME.BillingClerk",
-      "description": "Billing Clerk - Review repair bills, adjust charges, dispute charges"
+      "name": "$XSAPPNAME.Admin",
+      "description": "Admin: full access to all apps and actions"
     },
     {
       "name": "$XSAPPNAME.Manager",
-      "description": "Fleet / Operations Manager - All approvals, pricing rules, executive dashboards"
+      "description": "Manager: approvals, pricing rules, inspection locking"
     },
     {
-      "name": "$XSAPPNAME.Admin",
-      "description": "Administrator - System configuration and user management"
+      "name": "$XSAPPNAME.Dispatcher",
+      "description": "Dispatcher: customers, rental contracts, check-out, transfers"
+    },
+    {
+      "name": "$XSAPPNAME.YardWorker",
+      "description": "Yard Worker: inspections, damage records, photos, check-in"
+    },
+    {
+      "name": "$XSAPPNAME.Technician",
+      "description": "Technician: repair jobs, maintenance, release from workshop"
+    },
+    {
+      "name": "$XSAPPNAME.BillingClerk",
+      "description": "Billing Clerk: repair bills, adjustments, invoicing"
     },
     {
       "name": "$XSAPPNAME.Auditor",
-      "description": "Auditor - Read-only access to immutable condition logs and S/4 outbox"
+      "description": "Auditor: read-only access"
     }
   ],
   "role-templates": [
     {
-      "name": "YardWorker",
-      "description": "Yard Worker",
+      "name": "Admin",
+      "description": "RETS Admin",
       "scope-references": [
-        "$XSAPPNAME.YardWorker"
+        "$XSAPPNAME.Admin"
+      ]
+    },
+    {
+      "name": "Manager",
+      "description": "RETS Manager",
+      "scope-references": [
+        "$XSAPPNAME.Manager"
       ]
     },
     {
       "name": "Dispatcher",
-      "description": "Dispatcher",
+      "description": "RETS Dispatcher",
       "scope-references": [
         "$XSAPPNAME.Dispatcher"
       ]
     },
     {
+      "name": "YardWorker",
+      "description": "RETS YardWorker",
+      "scope-references": [
+        "$XSAPPNAME.YardWorker"
+      ]
+    },
+    {
       "name": "Technician",
-      "description": "Technician",
+      "description": "RETS Technician",
       "scope-references": [
         "$XSAPPNAME.Technician"
       ]
     },
     {
       "name": "BillingClerk",
-      "description": "Billing Clerk",
+      "description": "RETS BillingClerk",
       "scope-references": [
         "$XSAPPNAME.BillingClerk"
       ]
     },
     {
-      "name": "Manager",
-      "description": "Fleet / Operations Manager",
-      "scope-references": [
-        "$XSAPPNAME.Manager"
-      ]
-    },
-    {
-      "name": "Admin",
-      "description": "Administrator",
-      "scope-references": [
-        "$XSAPPNAME.Admin"
-      ]
-    },
-    {
       "name": "Auditor",
-      "description": "Auditor",
+      "description": "RETS Auditor",
       "scope-references": [
         "$XSAPPNAME.Auditor"
       ]
     }
   ],
-  "authorities-inheritance": false
+  "role-collections": [
+    {
+      "name": "RETS_Admin",
+      "description": "RETS Admin",
+      "role-template-references": [
+        "$XSAPPNAME.Admin"
+      ]
+    },
+    {
+      "name": "RETS_Manager",
+      "description": "RETS Manager",
+      "role-template-references": [
+        "$XSAPPNAME.Manager"
+      ]
+    },
+    {
+      "name": "RETS_Dispatcher",
+      "description": "RETS Dispatcher",
+      "role-template-references": [
+        "$XSAPPNAME.Dispatcher"
+      ]
+    },
+    {
+      "name": "RETS_YardWorker",
+      "description": "RETS YardWorker",
+      "role-template-references": [
+        "$XSAPPNAME.YardWorker"
+      ]
+    },
+    {
+      "name": "RETS_Technician",
+      "description": "RETS Technician",
+      "role-template-references": [
+        "$XSAPPNAME.Technician"
+      ]
+    },
+    {
+      "name": "RETS_BillingClerk",
+      "description": "RETS BillingClerk",
+      "role-template-references": [
+        "$XSAPPNAME.BillingClerk"
+      ]
+    },
+    {
+      "name": "RETS_Auditor",
+      "description": "RETS Auditor",
+      "role-template-references": [
+        "$XSAPPNAME.Auditor"
+      ]
+    }
+  ],
+  "oauth2-configuration": {
+    "redirect-uris": [
+      "https://*.applicationstudio.cloud.sap/**",
+      "https://*.hana.ondemand.com/**",
+      "http://localhost:5000/**"
+    ]
+  }
 }
