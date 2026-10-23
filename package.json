@@ -19,7 +19,7 @@
     "start": "cds-serve",
     "watch": "cds watch",
     "test": "CDS_ENV=test node --test test/rets.test.js",
-    "build:apps": "mkdir -p gen/srv/app && cp -r app/index.html app/common app/customer-management app/damage-charge-approval app/fleet-overview app/inspections app/locations app/maintenance-planner app/rentals app/repair-jobs gen/srv/app/"
+    "build:apps": "mkdir -p gen/srv/app && cp -r app/index.html app/common app/customer-management app/damage-charge-approval app/fleet-overview app/inspections app/locations app/maintenance-planner app/rentals app/repair-jobs gen/srv/app/ && find gen/srv/app -name '*.cds' -delete"
   },
   "cds": {
     "requires": {
