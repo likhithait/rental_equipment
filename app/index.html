@@ -5,8 +5,6 @@
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rental Equipment Tracking System</title>
-
-    <!-- SAP Fiori launchpad (sandbox): tiles depend on the roles of the logged-in user -->
     <script>
         (function () {
             // small synchronous GET (needed before the launchpad starts)
@@ -21,9 +19,11 @@
                 return fallback;
             };
 
-            // who is logged in (XSUAA login via approuter) + KPI numbers for the tiles
+
             var me = get("/api/whoAmI()", { user: "", name: "User", email: "", roles: [] });
             var kpi = get("/api/kpis()", {});
+
+            
             var roles = me.roles || [];
             var n = function (value) { return value === null || value === undefined ? "" : String(value); };
             var hasRole = function (allowed) {
@@ -181,5 +181,7 @@
         });
     </script>
 </head>
-<body class="sapUiBody sapUiSizeCompact" id="content"></body>
+<body class="sapUiBody sapUiSizeCompact" id="content">
+    
+</body>
 </html>
