@@ -29,6 +29,13 @@
   },
   "sap.ui5": {
     "flexEnabled": false,
+    "resources": {
+  "css": [
+    {
+      "uri": "css/rets-theme.css"
+    }
+  ]
+},
     "dependencies": {
       "minUI5Version": "1.153.0",
       "libs": {

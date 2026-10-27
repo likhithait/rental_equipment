@@ -1,187 +1,762 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rental Equipment Tracking System</title>
-    <script>
-        (function () {
-            // small synchronous GET (needed before the launchpad starts)
-            var get = function (url, fallback) {
-                try {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", url, false);
-                    xhr.setRequestHeader("Accept", "application/json");
-                    xhr.send();
-                    if (xhr.status === 200) return JSON.parse(xhr.responseText);
-                } catch (e) { /* ignore */ }
-                return fallback;
-            };
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>RETS | Rental Equipment Tracking System</title>
 
+  <style>
+    :root {
+      --navy: #102a43;
+      --blue: #1769e0;
+      --purple: #7357d9;
+      --teal: #0f9f9a;
+      --orange: #e88932;
+      --pink: #d94f87;
+      --green: #16845b;
+      --ink: #1b2b45;
+      --muted: #66758a;
+      --page: #f4f7fc;
+      --white: #fff;
+      --line: #e6ebf3;
+      --shadow: 0 10px 28px rgba(24, 48, 86, .08);
+    }
 
-            var me = get("/api/whoAmI()", { user: "", name: "User", email: "", roles: [] });
-            var kpi = get("/api/kpis()", {});
+    * { box-sizing: border-box; }
 
-            
-            var roles = me.roles || [];
-            var n = function (value) { return value === null || value === undefined ? "" : String(value); };
-            var hasRole = function (allowed) {
-                return allowed.some(function (role) { return roles.indexOf(role) >= 0; });
-            };
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--page);
+      font-family: "72", "72full", "Segoe UI", Arial, sans-serif;
+    }
 
-            var applications = {};
-            var tiles = [];
+    button, a { font: inherit; }
 
-            // one app (navigation target) + its launchpad tile (icon + KPI number), only for the
-            // roles that the app's OData service grants access to (srv/*-service.cds @requires)
-            var addApp = function (allowed, intent, component, namespace, title, subtitle, icon, number, info, state) {
-                if (!hasRole(allowed)) return;
-                applications[intent] = {
-                    title: title,
-                    description: subtitle,
-                    additionalInformation: "SAPUI5.Component=" + namespace,
-                    applicationType: "URL",
-                    url: "./" + component + "/webapp",
-                    navigationMode: "embedded"
-                };
-                tiles.push({
-                    id: "rets_tile_" + component,
-                    title: title,
-                    size: "1x1",
-                    tileType: "sap.ushell.ui.tile.DynamicTile",
-                    properties: {
-                        chipId: "rets_chip_" + component,
-                        title: title,
-                        subtitle: subtitle,
-                        info: info,
-                        icon: icon,
-                        numberValue: n(number),
-                        numberState: state || "Neutral",
-                        targetURL: "#" + intent
-                    }
-                });
-            };
+    .topbar {
+      min-height: 72px;
+      padding: 12px clamp(18px, 4vw, 58px);
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
 
-            // dispatch & customer master data
-            addApp(["Admin", "Dispatcher", "Manager"], "Customer-manage", "customer-management", "retcl.customermanagement",
-                "Customer Management", "Rental customers & contacts",
-                "sap-icon://customer", kpi.customers, "Customers");
-            addApp(["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"], "Equipment-overview", "fleet-overview", "retcl.fleetoverview",
-                "Fleet Overview", "Status, grade & depot of every asset",
-                "sap-icon://shipping-status", kpi.availableAssets, "Available assets", "Good");
-            addApp(["Admin", "Dispatcher", "Manager", "Auditor"], "Rental-manage", "rentals", "retcl.rentals",
-                "Rental Contracts", "Contracts, allocations, check-in",
-                "sap-icon://sales-order", kpi.activeRentals, "Active contracts");
-            addApp(["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"], "Location-manage", "locations", "retcl.locations",
-                "Depots & Yards", "Locations and GPS coordinates",
-                "sap-icon://map-2", kpi.locations, "Locations");
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
 
-            // inspections & billing
-            addApp(["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"], "ConditionLog-manage", "inspections", "retcl.inspections",
-                "Inspections", "Check-out / check-in condition logs",
-                "sap-icon://inspection", kpi.damagedAssets, "Damaged / pending inspection",
-                kpi.damagedAssets > 0 ? "Critical" : "Good");
-            addApp(["Admin", "BillingClerk", "Manager", "Auditor", "YardWorker", "Technician"], "RepairBill-approve", "damage-charge-approval", "retcl.damagechargeapproval",
-                "Damage Charge Approval", "Review, approve and post repair bills",
-                "sap-icon://receipt", kpi.pendingBills, "Bills waiting for approval",
-                kpi.pendingBills > 0 ? "Critical" : "Good");
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      color: white;
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #1684f8, #1648b8);
+      box-shadow: 0 5px 12px #1769e033;
+    }
 
-            // workshop & maintenance
-            addApp(["Admin", "Technician", "Manager"], "RepairJob-manage", "repair-jobs", "retcl.repairjobs",
-                "Workshop Repair Jobs", "Technician work orders",
-                "sap-icon://wrench", kpi.openRepairJobs, "Open repair jobs",
-                kpi.openRepairJobs > 0 ? "Critical" : "Good");
-            addApp(["Admin", "Technician", "Manager"], "Maintenance-plan", "maintenance-planner", "retcl.maintenanceplanner",
-                "Maintenance Planner", "Preventive service & calibration",
-                "sap-icon://appointment-2", kpi.plannedMaintenance, "Planned services");
+    .brand-name {
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--navy);
+    }
 
-            // used after start-up (see below)
-            window.retsTiles = tiles;
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
 
-            var names = String(me.name || me.user || "User").split(" ");
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-            window["sap-ushell-config"] = {
-                defaultRenderer: "fiori2",
-                services: {
-                    // real user in the shell header instead of "Default User"
-                    Container: {
-                        adapter: {
-                            config: {
-                                id: me.user || "USER",
-                                firstName: names[0],
-                                lastName: names.slice(1).join(" "),
-                                fullName: me.name || me.user,
-                                email: me.email
-                            }
-                        }
-                    },
-                    EndUserFeedback: { config: { enabled: false } }
-                },
-                renderers: {
-                    fiori2: {
-                        componentData: {
-                            config: {
-                                enableNotificationsUI: false,
-                                enableNotifications: false,
-                                enableSearch: false,
-                                enablePersonalization: false,
-                                enableSetTheme: true,
-                                enableSetLanguage: true
-                            }
-                        }
-                    }
-                },
-                applications: applications
-            };
-        }());
-    </script>
+    .role-pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: #174da8;
+      background: #eaf2ff;
+      font-size: 12px;
+      font-weight: 700;
+    }
 
-    <script id="sap-ushell-bootstrap" src="https://sapui5.hana.ondemand.com/1.153.0/test-resources/sap/ushell/bootstrap/sandbox.js"></script>
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: linear-gradient(135deg, #8a66e8, #4b56c9);
+      font-weight: 800;
+    }
 
-    <script id="sap-ui-bootstrap"
-        src="https://sapui5.hana.ondemand.com/1.153.0/resources/sap-ui-core.js"
-        data-sap-ui-libs="sap.ui.core, sap.ushell, sap.fe.templates"
-        data-sap-ui-compat-version="edge"
-        data-sap-ui-theme="sap_horizon"
-        data-sap-ui-async="true"
-        data-sap-ui-frame-options="allow"
-        data-sap-ui-preload="async"></script>
+    .logout {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: 10px;
+      padding: 9px 13px;
+      cursor: pointer;
+    }
 
-    <script>
-        sap.ui.getCore().attachInit(function () {
+    .logout:hover {
+      color: var(--blue);
+      border-color: #b8cff7;
+      background: #f8fbff;
+    }
 
-            // The sandbox puts one tile per application into its "generated group" and adds
-            // demo groups ("Sample Applications"). Keep only the generated group and give it
-            // our tiles with icon + KPI number.
-            var services = window["sap-ushell-config"].services || {};
-            ["FlpLaunchPage", "LaunchPage"].forEach(function (name) {
-                var config = services[name] && services[name].adapter && services[name].adapter.config;
-                if (config && config.groups) {
-                    config.groups = config.groups.filter(function (group) {
-                        return group.id === "sap_ushell_generated_group_id";
-                    });
-                    config.groups.forEach(function (group) {
-                        group.title = "Rental Equipment Tracking";
-                        group.isGroupLocked = true;
-                        group.tiles = window.retsTiles;
-                    });
-                }
-            });
+    main {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: 30px clamp(18px, 4vw, 58px) 54px;
+    }
 
-            // "Sign Out" in the user menu logs out of XSUAA via the approuter
-            sap.ushell.Container.registerLogout(function () {
-                window.location.href = "/do/logout";
-                return new Promise(function () {});   // keep waiting: the browser is leaving the page
-            });
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      padding: clamp(26px, 4vw, 44px);
+      color: white;
+      background: linear-gradient(
+        115deg,
+        #123b91 0%,
+        #1769e0 54%,
+        #6c5ce7 100%
+      );
+      box-shadow: 0 16px 34px rgba(36, 83, 174, .19);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
 
-            sap.ushell.Container.createRenderer("fiori2", true).then(function (renderer) {
-                renderer.placeAt("content");
-            });
-        });
-    </script>
+    .hero:before,
+    .hero:after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero:before {
+      width: 280px;
+      height: 280px;
+      right: 7%;
+      top: -155px;
+      background: #ffffff13;
+    }
+
+    .hero:after {
+      width: 190px;
+      height: 190px;
+      right: -42px;
+      bottom: -120px;
+      border: 30px solid #ffffff14;
+    }
+
+    .hero-copy, .hero-badge {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      font-size: 11px;
+      font-weight: 800;
+      opacity: .78;
+    }
+
+    h1 {
+      margin: 10px 0 9px;
+      font-size: clamp(27px, 3vw, 39px);
+      line-height: 1.12;
+      letter-spacing: -.8px;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 610px;
+      line-height: 1.6;
+      color: #e7efff;
+      font-size: 15px;
+    }
+
+    .hero-badge {
+      width: 112px;
+      height: 112px;
+      flex: 0 0 112px;
+      border: 1px solid #ffffff45;
+      background: #ffffff18;
+      border-radius: 30px;
+      display: grid;
+      place-items: center;
+      font-size: 46px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 15px;
+      margin: 30px 0 15px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 21px;
+      color: var(--navy);
+    }
+
+    .section-head p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .updated {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 19px;
+      min-width: 0;
+      box-shadow: 0 4px 15px #17345c08;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card:after {
+      content: "";
+      height: 4px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--accent, var(--blue));
+    }
+
+    .kpi-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .kpi-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .kpi-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--tint, #eaf2ff);
+      color: var(--accent, var(--blue));
+      font-size: 19px;
+    }
+
+    .kpi-value {
+      font-size: 32px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -.8px;
+      margin-top: 15px;
+      color: var(--navy);
+    }
+
+    .kpi-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 7px;
+    }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 17px;
+    }
+
+    .app-card {
+      --accent: var(--blue);
+      --tint: #eaf2ff;
+      min-height: 194px;
+      text-decoration: none;
+      color: inherit;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 19px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px #17345c07;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .app-card:before {
+      content: "";
+      height: 4px;
+      background: var(--accent);
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+
+    .app-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
+      border-color: var(--accent);
+    }
+
+    .app-card:focus-visible,
+    .logout:focus-visible {
+      outline: 3px solid #1769e080;
+      outline-offset: 3px;
+    }
+
+    .app-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .app-icon {
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      background: var(--tint);
+      color: var(--accent);
+      font-size: 23px;
+    }
+
+    .app-arrow {
+      color: #9aa8bb;
+      font-size: 20px;
+    }
+
+    .app-card h3 {
+      margin: 17px 0 6px;
+      color: var(--navy);
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .app-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .app-card-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 17px;
+    }
+
+    .app-category {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--tint);
+      border-radius: 999px;
+      padding: 6px 9px;
+    }
+
+    .app-open {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .empty {
+      display: none;
+      padding: 24px;
+      border-radius: 15px;
+      background: white;
+      color: var(--muted);
+      border: 1px dashed #cbd5e1;
+    }
+
+    footer {
+      margin-top: 32px;
+      text-align: center;
+      color: #8793a5;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1100px) {
+      .kpi-grid, .apps-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .kpi-grid, .apps-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hero-badge {
+        width: 78px;
+        height: 78px;
+        flex-basis: 78px;
+        font-size: 34px;
+      }
+
+      .role-pill { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .topbar { min-height: 64px; }
+      .brand-sub { display: none; }
+      .logout { padding: 8px 10px; }
+      main { padding-top: 18px; }
+
+      .hero {
+        border-radius: 18px;
+        padding: 24px 20px;
+      }
+
+      .hero-badge { display: none; }
+
+      .section-head {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .kpi-grid, .apps-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-card { padding: 17px; }
+      .app-card { min-height: 174px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
 </head>
-<body class="sapUiBody sapUiSizeCompact" id="content">
-    
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-label="RETS">R</div>
+      <div>
+        <div class="brand-name">RETS</div>
+        <div class="brand-sub">Rental Equipment Tracking System</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <span class="role-pill" id="rolePill">Loading role…</span>
+      <div class="user-avatar" id="userAvatar" title="Signed-in user">U</div>
+      <button class="logout" id="logoutButton" type="button">Sign out ↗</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Rental operations workspace</div>
+        <h1 id="welcomeTitle">Welcome to RETS</h1>
+        <p>
+          Track your fleet, manage rentals, inspect equipment,
+          and keep maintenance moving — all from one place.
+        </p>
+      </div>
+      <div class="hero-badge" aria-hidden="true">🚜</div>
+    </section>
+
+    <section aria-labelledby="overviewTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="overviewTitle">Fleet at a glance</h2>
+          <p>Key figures from your RETS workspace</p>
+        </div>
+        <span class="updated" id="lastUpdated">Loading data…</span>
+      </div>
+
+      <div class="kpi-grid" id="kpiGrid">
+        <article class="kpi-card" style="--accent:#1769e0;--tint:#eaf2ff">
+          <div class="kpi-top"><span class="kpi-label">Available assets</span><span class="kpi-icon">▣</span></div>
+          <div class="kpi-value" id="kpiAvailable">—</div>
+          <div class="kpi-note">Ready for allocation</div>
+        </article>
+
+        <article class="kpi-card" style="--accent:#0f9f9a;--tint:#e3f8f5">
+          <div class="kpi-top"><span class="kpi-label">Active rentals</span><span class="kpi-icon">⇄</span></div>
+          <div class="kpi-value" id="kpiRentals">—</div>
+          <div class="kpi-note">Contracts currently active</div>
+        </article>
+
+        <article class="kpi-card" style="--accent:#e88932;--tint:#fff2e5">
+          <div class="kpi-top"><span class="kpi-label">Damage / inspection</span><span class="kpi-icon">⌕</span></div>
+          <div class="kpi-value" id="kpiDamaged">—</div>
+          <div class="kpi-note">Items needing attention</div>
+        </article>
+
+        <article class="kpi-card" style="--accent:#7357d9;--tint:#f0ebff">
+          <div class="kpi-top"><span class="kpi-label">Open repair jobs</span><span class="kpi-icon">⚒</span></div>
+          <div class="kpi-value" id="kpiRepairs">—</div>
+          <div class="kpi-note">Workshop work in progress</div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="appsTitle">
+      <div class="section-head">
+        <div>
+          <h2 id="appsTitle">Your applications</h2>
+          <p>Choose an application to get started</p>
+        </div>
+        <span class="updated" id="appCount">Loading applications…</span>
+      </div>
+
+      <div class="apps-grid" id="appsGrid"></div>
+      <div class="empty" id="emptyState">
+        No applications are assigned to this account. Please contact your RETS administrator.
+      </div>
+    </section>
+
+    <footer>RETS · Rental Equipment Tracking System</footer>
+  </main>
+
+  <script>
+    (function () {
+      var fallbackMe = {
+        user: "",
+        name: "User",
+        email: "",
+        roles: []
+      };
+
+      function getJson(url, fallback) {
+        return fetch(url, {
+          headers: { Accept: "application/json" },
+          credentials: "same-origin"
+        })
+        .then(function (response) {
+          if (!response.ok) throw new Error("Request failed");
+          return response.json();
+        })
+        .catch(function () {
+          return fallback;
+        });
+      }
+
+      var roleNames = {
+        Admin: "Administrator",
+        Manager: "Manager",
+        Dispatcher: "Dispatcher",
+        YardWorker: "Yard Worker",
+        Technician: "Technician",
+        BillingClerk: "Billing Clerk",
+        Auditor: "Auditor"
+      };
+
+      var appDefinitions = [
+        {
+          allowed: ["Admin", "Dispatcher", "Manager"],
+          component: "customer-management",
+          title: "Customer Management",
+          description: "Manage rental customers and contacts.",
+          icon: "♙", category: "Customers",
+          color: "#1769e0", tint: "#eaf2ff"
+        },
+        {
+          allowed: ["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"],
+          component: "fleet-overview",
+          title: "Fleet Overview",
+          description: "View asset status, condition grades, and depot locations.",
+          icon: "🚚", category: "Fleet",
+          color: "#0f9f9a", tint: "#e3f8f5"
+        },
+        {
+          allowed: ["Admin", "Dispatcher", "Manager", "Auditor"],
+          component: "rentals",
+          title: "Rental Contracts",
+          description: "Manage contracts, equipment allocation, and check-in.",
+          icon: "⇄", category: "Rentals",
+          color: "#7357d9", tint: "#f0ebff"
+        },
+        {
+          allowed: ["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"],
+          component: "locations",
+          title: "Depots & Yards",
+          description: "Manage depots, yards, and equipment locations.",
+          icon: "⌖", category: "Locations",
+          color: "#e88932", tint: "#fff2e5"
+        },
+        {
+          allowed: ["Admin", "Dispatcher", "YardWorker", "Manager", "Auditor"],
+          component: "inspections",
+          title: "Inspections",
+          description: "Record check-out and check-in condition, damage, and evidence.",
+          icon: "✓", category: "Condition",
+          color: "#d94f87", tint: "#ffedf4"
+        },
+        {
+          allowed: ["Admin", "BillingClerk", "Manager", "Auditor", "YardWorker", "Technician"],
+          component: "damage-charge-approval",
+          title: "Damage Charge Approval",
+          description: "Review damage charges and permitted billing actions.",
+          icon: "＄", category: "Billing",
+          color: "#c06a16", tint: "#fff2e5"
+        },
+        {
+          allowed: ["Admin", "Technician", "Manager"],
+          component: "repair-jobs",
+          title: "Workshop Repair Jobs",
+          description: "Create and track equipment repair work orders.",
+          icon: "⚒", category: "Workshop",
+          color: "#1769e0", tint: "#eaf2ff"
+        },
+        {
+          allowed: ["Admin", "Technician", "Manager"],
+          component: "maintenance-planner",
+          title: "Maintenance Planner",
+          description: "Plan preventive maintenance and calibration work.",
+          icon: "▦", category: "Maintenance",
+          color: "#16845b", tint: "#e4f7ed"
+        }
+      ];
+
+      function renderApps(roles) {
+        var grid = document.getElementById("appsGrid");
+
+        var allowedApps = appDefinitions.filter(function (app) {
+          return app.allowed.some(function (role) {
+            return roles.indexOf(role) !== -1;
+          });
+        });
+
+        grid.innerHTML = allowedApps.map(function (app) {
+          var target = "./" + app.component + "/webapp";
+
+          return '<a class="app-card" style="--accent:' + app.color +
+            ';--tint:' + app.tint + '" href="' + target +
+            '" aria-label="Open ' + app.title + '">' +
+            '<div class="app-card-head">' +
+            '<span class="app-icon" aria-hidden="true">' + app.icon + '</span>' +
+            '<span class="app-arrow" aria-hidden="true">↗</span></div>' +
+            '<h3>' + app.title + '</h3><p>' + app.description + '</p>' +
+            '<div class="app-card-foot"><span class="app-category">' +
+            app.category + '</span><span class="app-open">Open application →</span>' +
+            '</div></a>';
+        }).join("");
+
+        document.getElementById("appCount").textContent =
+          allowedApps.length + (allowedApps.length === 1 ? " application" : " applications");
+
+        document.getElementById("emptyState").style.display =
+          allowedApps.length ? "none" : "block";
+      }
+
+      function setKpi(id, value) {
+        document.getElementById(id).textContent =
+          value === null || value === undefined ? "—" : String(value);
+      }
+
+      Promise.all([
+        getJson("/api/whoAmI()", fallbackMe),
+        getJson("/api/kpis()", {})
+      ]).then(function (results) {
+        var me = results[0] || fallbackMe;
+        var kpi = results[1] || {};
+
+
+
+
+
+
+        // TEMPORARY LOCAL TEST: view the Technician dashboard
+
+// TEMPORARY LOCAL TEST: view the Manager dashboard
+// TEMPORARY LOCAL TEST: view the Dispatcher dashboard
+// TEMPORARY LOCAL TEST: view the Yard Worker dashboard
+// TEMPORARY LOCAL TEST: view the Billing Clerk dashboard
+// TEMPORARY LOCAL TEST: view the Auditor dashboard
+// TEMPORARY LOCAL TEST: view the Administrator dashboard
+var roles = ["Admin"];
+var name = "Likhitha Sirikonda";
+
+
+
+
+
+        document.getElementById("welcomeTitle").textContent =
+          "Welcome back, " + name + "!";
+
+        document.getElementById("rolePill").textContent =
+          roles.map(function (role) {
+            return roleNames[role] || role;
+          }).join(" · ") || "RETS User";
+
+        document.getElementById("userAvatar").textContent =
+          (name.trim().charAt(0) || "U").toUpperCase();
+
+        setKpi("kpiAvailable", kpi.availableAssets);
+        setKpi("kpiRentals", kpi.activeRentals);
+        setKpi("kpiDamaged", kpi.damagedAssets);
+        setKpi("kpiRepairs", kpi.openRepairJobs);
+
+        document.getElementById("lastUpdated").textContent =
+          "Updated " + new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+
+        renderApps(roles);
+      });
+
+      document.getElementById("logoutButton").addEventListener("click", function () {
+        window.location.href = "/do/logout";
+      });
+    }());
+  </script>
 </body>
 </html>

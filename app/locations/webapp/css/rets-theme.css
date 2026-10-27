@@ -1,0 +1,123 @@
+
+/* RETS Object Page and List Report theme */
+
+:root {
+    --rets-primary: #1769e0;
+    --rets-primary-dark: #123b91;
+    --rets-purple: #7357d9;
+    --rets-teal: #0f9f9a;
+    --rets-page-bg: #f4f7fc;
+    --rets-card-bg: #ffffff;
+    --rets-text: #172b4d;
+    --rets-muted: #66758a;
+    --rets-border: #e3eaf3;
+}
+
+/* General application background */
+html,
+body,
+.sapUiBody {
+    background-color: var(--rets-page-bg);
+    color: var(--rets-text);
+}
+
+/* Object Page header */
+.sapUxAPObjectPageHeader,
+.sapUxAPObjectPageHeaderTitle,
+.sapUxAPObjectPageHeaderContent {
+    background-color: var(--rets-card-bg);
+}
+
+/* Object Page title */
+.sapUxAPObjectPageHeaderIdentifierTitle,
+.sapUxAPObjectPageHeaderObjectTitle {
+    color: var(--rets-primary-dark);
+    font-weight: 700;
+}
+
+/* Object Page section titles */
+.sapUxAPObjectPageSectionTitle,
+.sapUxAPObjectPageSubSectionTitle {
+    color: var(--rets-primary-dark);
+    font-weight: 700;
+}
+
+/* Section separators */
+.sapUxAPObjectPageSection {
+    border-color: var(--rets-border);
+}
+
+/* Form labels */
+.sapMLabel {
+    color: var(--rets-muted);
+}
+
+/* Input fields and dropdowns */
+.sapMInputBaseContentWrapper,
+.sapMSlt,
+.sapMSFF,
+.sapMTextAreaInner {
+    border-radius: 8px;
+}
+
+/* Standard buttons */
+.sapMBtnInner {
+    border-radius: 8px;
+}
+
+/* Emphasized action buttons */
+.sapMBtnEmphasized .sapMBtnInner {
+    background-color: var(--rets-primary);
+    border-color: var(--rets-primary);
+}
+
+/* Tables */
+.sapMListTblHeaderCell {
+    background-color: #eef4ff;
+    border-bottom: 1px solid var(--rets-border);
+}
+
+.sapMListTblCell {
+    border-color: var(--rets-border);
+}
+
+.sapMListTblRow:hover {
+    background-color: #f4f8ff;
+}
+
+/* Panels and cards */
+.sapMPanel,
+.sapFCard {
+    border-color: var(--rets-border);
+    border-radius: 12px;
+}
+
+/* Toolbar separators */
+.sapMTB,
+.sapMOTB {
+    border-color: var(--rets-border);
+}
+
+/* Status colors should continue to follow SAP semantic states */
+.sapMObjStatus {
+    font-weight: 600;
+}
+
+/* Keyboard focus */
+.sapMBtn:focus-visible,
+.sapMLnk:focus-visible,
+.sapMInputBase:focus-within {
+    outline-color: var(--rets-primary);
+}
+
+/* Responsive layout */
+@media (max-width: 600px) {
+    .sapUxAPObjectPageHeaderIdentifierTitle,
+    .sapUxAPObjectPageHeaderObjectTitle {
+        overflow-wrap: anywhere;
+    }
+}
+
+/* Temporary test: remove after verification */
+
+
